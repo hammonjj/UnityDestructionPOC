@@ -28,9 +28,15 @@ namespace DestructionLab
     {
         const int C = DestructionSettings.Concrete;
 
+        /// <summary>Authored model (a Blender blockout FBX) offered as a scenario when the lab supplies one.</summary>
+        public static GameObject AuthoredModel;
+
+        /// <summary>Last import report, shown in the scenario's on-screen text.</summary>
+        public static string AuthoredReport = "";
+
         public static List<Scenario> All()
         {
-            return new List<Scenario>
+            var list = new List<Scenario>
             {
                 IntactBuilding(),
                 LocalDamage(),
@@ -41,6 +47,60 @@ namespace DestructionLab
                 SecondaryCollapse(),
                 PersistentRubble(),
                 Shatter(),
+            };
+            if (AuthoredModel != null) list.Add(AuthoredBuilding());
+            return list;
+        }
+
+        // ------------------------------------------------------------------ 8: authored model
+
+        /// <summary>
+        /// Reads the authored blockout into structural pieces. Instantiating the model, measuring it and
+        /// throwing the instance away keeps the rest of the lab working on plain boxes.
+        /// </summary>
+        public static List<PieceDef> ReadAuthoredModel(DestructionSettings settings)
+        {
+            var instance = UnityEngine.Object.Instantiate(AuthoredModel);
+            instance.hideFlags = HideFlags.HideAndDontSave;
+            instance.SetActive(false);
+            try
+            {
+                var result = StructureImporter.Read(instance, settings);
+                var warnings = new List<string>();
+                foreach (var issue in result.issues)
+                {
+                    if (issue.fatal) Debug.LogError($"[DestructionLab] import {issue}");
+                    else Debug.LogWarning($"[DestructionLab] import {issue}");
+                    warnings.Add(issue.message);
+                }
+                AuthoredReport = result.pieces.Count == 0
+                    ? "import failed: " + (warnings.Count > 0 ? warnings[0] : "no pieces")
+                    : $"{result.pieces.Count} pieces read from {AuthoredModel.name}" +
+                      (result.Skipped > 0 ? $", {result.Skipped} skipped" : "") +
+                      (warnings.Count > 0 ? $" ({warnings.Count} warning(s) in the console)" : "");
+                return result.pieces;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(instance);
+            }
+        }
+
+        static Scenario AuthoredBuilding()
+        {
+            DestructionSettings settings = null; // handed over by configure, which runs before build
+            return new Scenario
+            {
+            id = "authored",
+            title = "8 · Authored building (Blender)",
+            instruction = "This structure was modelled in Blender as box objects and imported. Press T to blow out a ground-floor corner, or use any tool on it.",
+            expected = "It behaves exactly like the procedural scenarios: bricks and timber take their strengths from the name suffixes, blast cores shatter, overloaded joints hinge, and the upper storey loses support where the corner went.",
+            build = () => ReadAuthoredModel(settings),
+            configure = s => settings = s,
+            highlight = new[] { "Pier_WS__concrete" },
+            triggerLabel = "Blow out a corner",
+            trigger = w => w.Explode(new Vector3(-2.6f, 1.1f, -2.1f), 2.4f, 1.8f, 14000f),
+            cameraPivot = new Vector3(0f, 2.6f, 0f), cameraDistance = 19f, cameraYaw = 145f, cameraPitch = 14f,
             };
         }
 

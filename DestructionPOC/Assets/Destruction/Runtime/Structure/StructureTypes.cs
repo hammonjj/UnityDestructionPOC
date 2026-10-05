@@ -22,6 +22,8 @@ namespace DestructionLab
         public Mesh mesh;
         /// <summary>Volume of <see cref="mesh"/>, m³. Boxes derive it from <see cref="size"/> instead.</summary>
         public float meshVolume;
+        /// <summary>Authored pieces tagged __noshatter break off whole but never fragment.</summary>
+        public bool noShatter;
 
         public static PieceDef Box(string name, Vector3 center, Vector3 size, PieceKind kind, int material = 0)
         {

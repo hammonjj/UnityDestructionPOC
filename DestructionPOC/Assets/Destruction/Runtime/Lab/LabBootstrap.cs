@@ -11,6 +11,8 @@ namespace DestructionLab
     public sealed class LabBootstrap : MonoBehaviour
     {
         public DestructionSettings settings;
+        [Tooltip("Optional authored blockout (a Blender FBX). When set, it is offered as the last scenario.")]
+        public GameObject authoredModel;
         [Tooltip("Scenario loaded on Play (index into the scenario list).")]
         public int startScenario = 4;
 
@@ -22,6 +24,7 @@ namespace DestructionLab
             Time.fixedDeltaTime = 0.02f;
             Physics.simulationMode = SimulationMode.FixedUpdate;
 
+            ScenarioLibrary.AuthoredModel = authoredModel;
             CreateGround();
 
             var worldGo = new GameObject("Destruction World");

@@ -74,11 +74,48 @@ namespace DestructionLab.EditorTools
             var go = new GameObject("Destruction Lab");
             var boot = go.AddComponent<LabBootstrap>();
             boot.settings = settings;
+            boot.authoredModel = ConfigureAuthoredModel(AuthoredModelPath);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
             Debug.Log("[DestructionLab] Lab scene, settings and materials rebuilt.");
+        }
+
+        const string AuthoredModelPath = Root + "/Models/SampleBuilding.fbx";
+
+        /// <summary>
+        /// Imports an authored blockout with settings the structure importer relies on: real metres, no
+        /// rescaling, readable meshes and no generated colliders (the lab makes its own).
+        /// </summary>
+        [MenuItem("Destruction Lab/Reimport Authored Model")]
+        public static void ReimportAuthoredModel() => ConfigureAuthoredModel(AuthoredModelPath);
+
+        static GameObject ConfigureAuthoredModel(string path)
+        {
+            var importer = AssetImporter.GetAtPath(path) as ModelImporter;
+            if (importer == null)
+            {
+                Debug.LogWarning($"[DestructionLab] no authored model at {path}; the lab will run without scenario 8.");
+                return null;
+            }
+            importer.globalScale = 1f;
+            importer.useFileScale = true;
+            importer.bakeAxisConversion = false;
+            importer.isReadable = true;
+            importer.meshCompression = ModelImporterMeshCompression.Off;
+            importer.optimizeMeshPolygons = false;
+            importer.optimizeMeshVertices = false;
+            importer.addCollider = false;
+            importer.importBlendShapes = false;
+            importer.importVisibility = false;
+            importer.importCameras = false;
+            importer.importLights = false;
+            importer.animationType = ModelImporterAnimationType.None;
+            importer.importAnimation = false;
+            importer.materialImportMode = ModelImporterMaterialImportMode.None;
+            importer.SaveAndReimport();
+            return AssetDatabase.LoadAssetAtPath<GameObject>(path);
         }
 
         static Material MaterialAsset(string name, Shader shader, Color color, float smoothness)

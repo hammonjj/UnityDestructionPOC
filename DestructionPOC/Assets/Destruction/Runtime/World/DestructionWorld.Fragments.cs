@@ -21,6 +21,7 @@ namespace DestructionLab
             if (!f.enabled || piece < 0 || piece >= pieces.Count) return false;
             var p = pieces[piece];
             if (p.removed) return false;
+            if (Graph.pieces[piece].noShatter) return false;
             return !p.isFragment || f.fragmentsCanShatter;
         }
 
