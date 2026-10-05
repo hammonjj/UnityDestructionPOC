@@ -50,6 +50,7 @@ namespace DestructionLab
                 SecondaryCollapse(),
                 PersistentRubble(),
                 Shatter(),
+                Stress(),
             };
             if (AuthoredModel != null) list.Add(AuthoredBuilding());
             if (WarehouseModel != null) list.Add(Warehouse());
@@ -413,6 +414,49 @@ namespace DestructionLab
             triggerLabel = "Blast the wall",
             trigger = w => w.Explode(new Vector3(0f, 1.6f, -0.6f), 2.6f, 1.6f, 12000f),
             cameraPivot = new Vector3(0f, 1.6f, 1f), cameraDistance = 14f, cameraYaw = 155f, cameraPitch = 16f,
+        };
+
+        // ------------------------------------------------------------------ stress
+
+        /// <summary>
+        /// A deliberately oversized structure for measuring cost: a block of brick panels on concrete piers,
+        /// around 700 pieces. Far beyond the intended scale, which is the point.
+        /// </summary>
+        static Scenario Stress() => new Scenario
+        {
+            id = "stress",
+            title = "S · Stress test (large structure)",
+            instruction = "Roughly 700 pieces, well past the intended scale. Watch the batch and frame-time figures in the stats panel, then press T to blow a hole in it.",
+            expected = "A reference point for rendering and simulation cost, not a demonstration. Untinted pieces share one material per material type so they batch; the load and cluster tints deliberately colour every piece and cost more.",
+            build = () =>
+            {
+                var list = new List<PieceDef>();
+                const int bays = 9, storeys = 6;
+                const float bay = 2.2f, storey = 2.4f, slab = 0.25f;
+                for (int s = 0; s < storeys; s++)
+                {
+                    float y0 = s * (storey + slab);
+                    for (int ix = 0; ix <= bays; ix++)
+                    for (int iz = 0; iz <= 1; iz++)
+                        list.Add(PieceDef.Box($"Pier {s}_{ix}_{iz}",
+                            new Vector3(-bays * bay / 2f + ix * bay, y0 + storey / 2f, iz * 6f - 3f),
+                            new Vector3(0.4f, storey, 0.4f), PieceKind.Column));
+                    for (int ix = 0; ix < bays; ix++)
+                    for (int iz = 0; iz <= 1; iz++)
+                        list.Add(PieceDef.Box($"Panel {s}_{ix}_{iz}",
+                            new Vector3(-bays * bay / 2f + (ix + 0.5f) * bay, y0 + storey / 2f, iz * 6f - 3f),
+                            new Vector3(bay - 0.4f, storey, 0.3f), PieceKind.Wall, DestructionSettings.Brick));
+                    for (int ix = 0; ix < bays; ix++)
+                    for (int iz = 0; iz < 3; iz++)
+                        list.Add(PieceDef.Box($"Floor {s}_{ix}_{iz}",
+                            new Vector3(-bays * bay / 2f + (ix + 0.5f) * bay, y0 + storey + slab / 2f, iz * 2f - 2f),
+                            new Vector3(bay, slab, 2f), PieceKind.Slab));
+                }
+                return list;
+            },
+            triggerLabel = "Blast the middle",
+            trigger = w => w.Explode(new Vector3(0f, 3.5f, -2.6f), 3.5f, 2.5f, 20000f),
+            cameraPivot = new Vector3(0f, 7f, 0f), cameraDistance = 38f, cameraYaw = 150f, cameraPitch = 16f,
         };
 
         // ------------------------------------------------------------------ 6: rubble

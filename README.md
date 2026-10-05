@@ -54,6 +54,7 @@ The on-screen panels give the same information. The scenario panel is on the lef
 | 5 · Secondary collapse | **T** cuts the top balcony | It falls onto the next balcony, whose joint fails by impact and hangs with the debris. Further failures from impact or overload stay bounded, and the log goes quiet. |
 | 6 · Persistent rubble | Wait for sleep (F2 → sleep tint), then **T** | A 2 t block lands on the pile. The pieces it touches wake, the pile supports it, and everything sleeps again. |
 | 7 · Shatter into rubble | **T** sets off a charge against the middle of a panel wall | Panels inside the blast core shatter into chunks that fly, fall and pile up. Panels further out lose their joints and drop or hinge whole. The rubble sleeps and stays collidable. |
+| S · Stress test | **T** blasts the middle of a ~390-piece block | Not a demonstration, a cost reference. Use it to see how frame time, draw calls and structural time move as a structure grows. |
 | 8 · Authored building (Blender) | **T** blows out a ground-floor corner | A cottage modelled in Blender, not in code. It behaves like the procedural scenarios: the corner pier shatters, the upper storey loses support, and panels hinge where joints are overloaded. |
 
 ### Shattering vs hinging
@@ -69,6 +70,18 @@ Pieces now break into fragments, but only on **violent** failures:
 The chunks are irregular convex cells, not a grid of identical boxes. Each piece is cut by a Voronoi pattern, so the chunks differ in shape and size (typically a 3–4× spread in mass) while still filling the original piece exactly, which keeps the total mass right. Switch `fragments.shape` to `Boxes` for the older uniform split.
 
 The frame building in scenarios 1–2 is also the free-play sandbox. Try the Explode tool on a column, or drop blocks on a floor.
+
+## Cost on large structures
+
+The lab was sized for roughly 150 pieces. Imported buildings can be much larger, so the per-frame work is kept off the piece count where possible:
+
+- Pieces share **one material per material type**, and only genuinely tinted pieces (damaged, residual, or in the cluster and sleep tint modes) carry a `MaterialPropertyBlock`. That block is what makes a renderer ineligible for batching, so an undamaged structure of any size carries none.
+- Colours are applied **when they change**, not on a timer. Building the stress scenario applies 390 colour changes in total and then nothing until something breaks.
+- The diagnostics overlay rebuilds its line mesh **30 times a second, and not at all while hidden** (F1).
+
+The stats panel shows draw calls, how many pieces are currently tinted, and frame time, so you can see the cost of your own model. In the editor, draw-call counts cover whichever view drew last, so treat them as a rough guide and compare frame time instead.
+
+If you hit **"Ran out of Graphics Ring Buffer space"**, it is an editor rendering warning rather than a simulation problem; results are unaffected. Check the piece count and the tinted count first, try F1 to hide the overlay and F2 to leave the cluster and sleep tints, and as a stopgap add `-gfx-ring-buffer-size=64` to the editor's launch arguments.
 
 ## Reading the diagnostics
 
@@ -165,7 +178,7 @@ Measured on an Apple M5 Pro (16 cores, 24 GB) in the editor, Play mode, Game vie
 | Check | Result |
 |---|---|
 | Compile | 0 errors, 0 warnings from project code |
-| EditMode / PlayMode tests | 49/49 and 28/28 passing |
+| EditMode / PlayMode tests | 49/49 and 32/32 passing |
 | Console during a full scenario sweep | 0 errors, 0 warnings from project code |
 | Authored Blender model (2026-10-05) | 51 pieces read with no warnings, 141 connections, 13 ground anchors. Stable with 0 bodies and 0 failures. A corner blast shattered the pier, left residual hinges on the storey above, and settled with 26 sleeping bodies. |
 | Spike S1 hang | Settles at 77.6° and holds for 60 s. Angle change 0.0°, \|ω\| < 0.0001 rad/s, anchor drift < 1 cm. Joint force 94.3 kN against 94.2 kN weight. Hinge moment 53.5 kN·m against 52.0 analytic. Residual q 0.70, using the test's 1.6× residual strength. |
@@ -176,6 +189,8 @@ Measured on an Apple M5 Pro (16 cores, 24 GB) in the editor, Play mode, Game vie
 | Same collapse with fragmentation (2026-10-05) | 18 pieces shattered into 104 irregular fragments, with 132 transitions and peak 120 bodies, at 530–690 FPS. Physics ≤ 1.2 ms per step. Structural work ≤ 7.9 ms on the step that also re-clusters the whole building; a shatter-only step is about 2.7 ms. All bodies asleep and 0 console errors. |
 
 Provisional target: ≥ 60 FPS with ≤ 150 active bodies and ≤ 40 joints. The worst case above is well inside it.
+
+**Measurement caveat:** editor frame time on the stress scenario varied between 2.1 ms and 4.3 ms across identical runs, so the rendering changes above are justified by counters (property blocks in use, colour updates applied) rather than by a frame-rate claim. A standalone player build would be needed for a trustworthy figure.
 
 **Still to check by hand:** real mouse and keyboard input in the Game view. That covers that clicking a UI button does not also damage the structure, orbit and pan feel, and slow-motion smoothness. Automated checks drove the controller through its public methods, not a physical mouse.
 

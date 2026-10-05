@@ -18,6 +18,10 @@ namespace DestructionLab
         public float shatterDamage;
         /// <summary>Created by shattering another piece.</summary>
         public bool isFragment;
+        /// <summary>Carries a MaterialPropertyBlock, so it cannot batch with the others.</summary>
+        public bool tinted;
+        public bool hasColor;
+        public Color appliedColor;
     }
 
     /// <summary>A rigid group of pieces. Static clusters have no Rigidbody (the intact anchored structure).</summary>
@@ -119,5 +123,7 @@ namespace DestructionLab
         public float spawnMs;
         public float peakShapeMs;
         public float peakSpawnMs;
+        /// <summary>Renderer colour changes applied since the last reset; stays flat when nothing changes.</summary>
+        public int tintUpdates;
     }
 }

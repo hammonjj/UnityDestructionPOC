@@ -164,7 +164,14 @@ namespace DestructionLab
                 phys = $"{max / 1e6:0.00} ms (max {physicsMaxMs:0.00})";
             }
             float since = world.SimTime;
-            return $"<b>Stats</b>  FPS {fps:0}   physics {phys}   structural {st.structuralMs:0.00} ms (max {st.maxStructuralMs:0.00})\n" +
+            // Batch counts only exist in the editor; they are the number that explains a graphics ring
+            // buffer warning, so they are worth showing while tuning a large model.
+            string draw = "";
+#if UNITY_EDITOR
+            draw = $"   draw calls {UnityEditor.UnityStats.drawCalls} ({UnityEditor.UnityStats.srpBatcherDrawCalls} batched)" +
+                   $"   tinted {world.TintedPieces}";
+#endif
+            return $"<b>Stats</b>  FPS {fps:0}   physics {phys}   structural {st.structuralMs:0.00} ms (max {st.maxStructuralMs:0.00}){draw}\n" +
                    $"sim time {since:0.0} s   pieces {st.pieces} (static {st.staticPieces})   bodies active {st.dynamicBodies} / sleeping {st.sleepingBodies}   joints {st.activeJoints}\n" +
                    $"connections structural {st.structural} · residual {st.residual} · severed {st.severed}   failures {world.log.Total} (pending {st.pendingFailures})   contacts {st.contactsThisStep} impacts {st.impactsThisStep}\n" +
                    $"shattered pieces {st.shatteredPieces} → live fragments {st.liveFragments} / {world.Settings.fragments.maxLiveFragments}" +

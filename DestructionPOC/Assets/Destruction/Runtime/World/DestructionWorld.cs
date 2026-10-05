@@ -163,6 +163,7 @@ namespace DestructionLab
             stats = default;
             removedHolder = null;
             ClearFragmentMeshes();
+            ClearPieceMaterials();
             nextClusterId = 0;
             if (root != null)
             {
@@ -588,7 +589,7 @@ namespace DestructionLab
 
             shape.providesContacts = true;
             shape.sharedMaterial = PhysicsMaterialFor(d.material);
-            mr.sharedMaterial = Settings.pieceMaterial;
+            mr.sharedMaterial = MaterialAssetFor(d.material);
 
             var p = go.AddComponent<Piece>();
             p.index = i;
@@ -605,14 +606,51 @@ namespace DestructionLab
         static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         static readonly int ColorId = Shader.PropertyToID("_Color");
 
+        /// <summary>
+        /// A MaterialPropertyBlock makes a renderer ineligible for the SRP batcher, so draw calls would scale
+        /// one for one with pieces. Pieces showing their plain material colour therefore carry no block at all
+        /// and batch with every other piece of that material; only genuinely tinted pieces pay for one. The
+        /// colour is also cached, so a piece that did not change costs nothing.
+        /// </summary>
         public void SetPieceColor(int i, Color c)
         {
-            if (mpb == null) mpb = new MaterialPropertyBlock();
-            var mr = pieces[i].meshRenderer;
-            mr.GetPropertyBlock(mpb);
-            mpb.SetColor(BaseColorId, c);
-            mpb.SetColor(ColorId, c);
-            mr.SetPropertyBlock(mpb);
+            var piece = pieces[i];
+            if (piece == null || piece.removed) return;
+            if (piece.hasColor && piece.appliedColor == c) return;
+
+            var mr = piece.meshRenderer;
+            bool plain = c == Settings.Material(Graph.pieces[i].material).color;
+            if (plain)
+            {
+                if (piece.tinted)
+                {
+                    mr.SetPropertyBlock(null);
+                    piece.tinted = false;
+                }
+            }
+            else
+            {
+                if (mpb == null) mpb = new MaterialPropertyBlock();
+                mpb.Clear();
+                mpb.SetColor(BaseColorId, c);
+                mpb.SetColor(ColorId, c);
+                mr.SetPropertyBlock(mpb);
+                piece.tinted = true;
+            }
+            piece.appliedColor = c;
+            piece.hasColor = true;
+            stats.tintUpdates++;
+        }
+
+        /// <summary>Pieces currently carrying a property block, so they cannot batch. For diagnostics.</summary>
+        public int TintedPieces
+        {
+            get
+            {
+                int n = 0;
+                foreach (var p in pieces) if (p != null && !p.removed && p.tinted) n++;
+                return n;
+            }
         }
 
         PhysicsMaterial PhysicsMaterialFor(int material)
@@ -629,6 +667,33 @@ namespace DestructionLab
             };
             physicsMaterials[material] = pm;
             return pm;
+        }
+
+        readonly List<Material> pieceMaterials = new List<Material>();
+
+        /// <summary>One shared material per material spec, so untinted pieces of a kind batch together.</summary>
+        Material MaterialAssetFor(int index)
+        {
+            while (pieceMaterials.Count <= index) pieceMaterials.Add(null);
+            if (pieceMaterials[index] != null) return pieceMaterials[index];
+            var spec = Settings.Material(index);
+            var m = new Material(Settings.pieceMaterial)
+            {
+                name = $"Piece {spec.name} (runtime)",
+                hideFlags = HideFlags.HideAndDontSave,
+                enableInstancing = true,
+            };
+            m.SetColor(BaseColorId, spec.color);
+            m.SetColor(ColorId, spec.color);
+            pieceMaterials[index] = m;
+            return m;
+        }
+
+        void ClearPieceMaterials()
+        {
+            foreach (var m in pieceMaterials)
+                if (m != null) DestroyImmediate(m);
+            pieceMaterials.Clear();
         }
 
         void EnsureRenderMaterials()

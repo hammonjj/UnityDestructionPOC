@@ -19,6 +19,10 @@ namespace DestructionLab
         readonly List<Color> colors = new List<Color>();
         readonly List<int> indices = new List<int>();
         float nextTint;
+        float nextLines;
+        bool meshHasLines;
+        /// <summary>Overlay rebuilds per second. Lower this if a very large structure costs too much.</summary>
+        public float linesPerSecond = 30f;
 
         public static readonly Color Residual = new Color(1f, 0.2f, 0.95f, 1f);
         public static readonly Color Dormant = new Color(0.55f, 0.3f, 0.7f, 0.8f);
@@ -51,13 +55,33 @@ namespace DestructionLab
         void LateUpdate()
         {
             if (world == null || world.Graph == null || mesh == null) return;
-            verts.Clear(); colors.Clear(); indices.Clear();
-            if (lab.DiagnosticsVisible) BuildLines();
-            mesh.Clear();
-            mesh.SetVertices(verts);
-            mesh.SetColors(colors);
-            mesh.SetIndices(indices, MeshTopology.Lines, 0, false);
-            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 2000f);
+
+            // Rebuilding the line mesh is the most expensive thing here, so skip it entirely while the
+            // overlay is hidden rather than uploading an empty mesh every frame.
+            if (!lab.DiagnosticsVisible)
+            {
+                if (meshHasLines)
+                {
+                    mesh.Clear();
+                    meshHasLines = false;
+                    meshRenderer.enabled = false;
+                }
+            }
+            else if (Time.unscaledTime >= nextLines)
+            {
+                // The line mesh is rebuilt from every connection, so it is the dominant cost on a large
+                // structure. Rebuilding it 30 times a second is indistinguishable from every frame.
+                nextLines = Time.unscaledTime + 1f / Mathf.Max(1f, linesPerSecond);
+                verts.Clear(); colors.Clear(); indices.Clear();
+                BuildLines();
+                mesh.Clear();
+                mesh.SetVertices(verts);
+                mesh.SetColors(colors);
+                mesh.SetIndices(indices, MeshTopology.Lines, 0, false);
+                mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 2000f);
+                meshHasLines = true;
+                meshRenderer.enabled = true;
+            }
 
             if (Time.unscaledTime >= nextTint)
             {
