@@ -7,7 +7,7 @@ This note explains how the Destruction Lab is built, which approximations it mak
 | Idea | Status in the research | Used here |
 |---|---|---|
 | Separate structural integrity, constrained failure motion, and free rigid motion | Documented as the overall direction (GDC 2024; 2026 announcement of partially attached structures) | Yes. This is the core split: load model, residual joints, PhysX bodies. |
-| Coarse structural graph separate from the visual fracture set | Documented (Forslund thesis) | Partly. v1 uses one shared graph whose nodes are pieces. `regionId == piece id` is the seam for a later fragment layer. |
+| Coarse structural graph separate from the visual fracture set | Documented (Forslund thesis) | Partly. One shared graph whose nodes are pieces, plus a fragment layer under each piece that only exists once the piece shatters (see Fragmentation). |
 | Baseline-relative break scoring with normal / shear / bending terms | Documented at slide level (GDC 2024) | Adapted. See calibration below. |
 | Third connection state: structural → residual → severed | Behaviour announced, solver not published | Yes, as a reconstruction |
 | Sparse Cholesky structural solver | Documented for the shipped game | No. We use a much simpler quasi-static propagation. A dense solve is the documented fallback. |
@@ -92,6 +92,35 @@ Everything is SI: kg, m, s, N, N·m, J. Damage D is dimensionless in [0, 1]. q i
 | Demolish / sever (scenario triggers) | Destroys the named connections; demolish also removes the piece |
 | Impact | `Physics.ContactEvent` is used, which reports each pair once. Relative normal speed at the contact point comes from the pre-collision body velocities the event provides. Contacts below 2 m/s are ignored. Energy is ½·impulse·speed, split half to each body. Damage is energy ÷ total toughness of the piece's live interfaces (J/m² × m²). There are per-pair and per-connection cooldowns. |
 | Resting contact | Never damage: it is ≈ 0 m/s, whatever the impulse. It does become a **support load**. Debris resting on static pieces adds its contact force at the contact point to the load model, and so do residual hinges hanging from static pieces. Readings from sleeping bodies are kept, because PhysX stops reporting them. |
+
+## Fragmentation (shattering into rubble)
+
+The research warns against turning every fragment into its own body at the first hit, which gives gravel-like collapse and a large simulation bill. Fragments therefore exist only under pieces that **shatter**, and only violent failures shatter.
+
+**What triggers a shatter:**
+
+| Trigger | Condition |
+|---|---|
+| Accumulated direct damage on the piece | ≥ 1, which is three default clicks |
+| Explosion core | The piece's collider lies within 35% of the blast radius |
+| Hard impact | Impact energy per kg of the struck piece is at least 20 J/kg, connected or loose |
+
+Overload failures never shatter. They keep the hinge, sag and tear behaviour on whole slabs.
+
+**The fragment pattern** comes from a deterministic recursive split. The largest box is split along its longest axis at a seeded fraction between 0.35 and 0.65, repeated until about one fragment per 0.8 m cell, clamped to 3–12 per piece with a minimum dimension of 0.15 m. The fragments tile the piece exactly, so mass is conserved. The same seed gives the same chunks on every reset.
+
+**A shatter runs once per fixed step**, after damage sources and before the load model:
+
+1. The piece's connections are severed and logged with the shatter reason.
+2. The piece is removed: parked as an inactive object, so destroying its cluster later cannot destroy it.
+3. Fragments spawn as loose pieces at the piece's pose. They get the parent body's point velocity and angular velocity, and shrink 4% so they cannot jam in the opening they came from.
+4. Re-clustering handles the neighbours.
+
+Explosion impulses are applied after the commit and after `Physics.SyncTransforms`, so new fragments receive them exactly once. The velocity change per body is capped at 9 m/s.
+
+**Budget:** at most 300 live fragments. A shatter that would exceed it detaches the piece whole instead, and the HUD shows it as "over budget". Fragments never shatter again.
+
+**Measured:** in the worst-case frame collapse, 19 pieces became 110 fragments, with a peak of 134 bodies. Physics peaked at 3.3 ms per step, and the single shatter step cost 8.1 ms of structural work. Everything was asleep by about 11 s. Box fragments look blocky. Voronoi or authored chunks are part of spike #20.
 
 ## Timing and safe mutation
 
