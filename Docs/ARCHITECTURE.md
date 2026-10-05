@@ -107,7 +107,15 @@ The research warns against turning every fragment into its own body at the first
 
 Overload failures never shatter. They keep the hinge, sag and tear behaviour on whole slabs.
 
-**The fragment pattern** comes from a deterministic recursive split. The largest box is split along its longest axis at a seeded fraction between 0.35 and 0.65, repeated until about one fragment per 0.8 m cell, clamped to 3–12 per piece with a minimum dimension of 0.15 m. The fragments tile the piece exactly, so mass is conserved. The same seed gives the same chunks on every reset.
+**The fragment pattern** is a Voronoi fracture, so the chunks are irregular rather than a grid of identical boxes:
+
+1. Sites are scattered on a jittered grid that holds about 1.7 times as many slots as sites. The chosen subset leaves gaps, which is what makes neighbouring cells come out at different sizes.
+2. Each cell starts as the whole piece and is clipped against the bisector plane between its site and every other site. Clipping a convex solid by a half-space is exact: each face is cut, and the opening is capped by sorting the cut points around the plane normal.
+3. Volume and centre of mass come from a tetrahedron fan over the faces. Mass is the cell's own volume times the material density.
+
+Because every point of the piece belongs to exactly one cell, the cells tile the piece exactly and mass is conserved. The count is about one chunk per 0.8 m cell, clamped to 3–12 per piece. Cells thinner than half the minimum fragment size are dropped, and if that loses more than 10% of the volume the piece falls back to the box splitter, which is still available as a setting. The same seed reproduces the same chunks on every reset.
+
+Each cell becomes a flat-shaded runtime mesh centred on its centre of mass, with a convex `MeshCollider`. Collider cooking skips the cleaning and welding passes, since the mesh is already a clean convex hull; that alone cut the spawn cost by about half. Triangle winding must put `cross(b−a, c−a)` outward or the chunks render inside-out, which an EditMode test now asserts.
 
 **A shatter runs once per fixed step**, after damage sources and before the load model:
 
@@ -118,9 +126,11 @@ Overload failures never shatter. They keep the hinge, sag and tear behaviour on 
 
 Explosion impulses are applied after the commit and after `Physics.SyncTransforms`, so new fragments receive them exactly once. The velocity change per body is capped at 9 m/s.
 
-**Budget:** at most 300 live fragments. A shatter that would exceed it detaches the piece whole instead, and the HUD shows it as "over budget". Fragments never shatter again.
+**Budget:** at most 300 live fragments. A shatter that would exceed it detaches the piece whole instead, and the HUD shows it as "over budget". Fragments never shatter again. Building shapes is the most expensive part of the step, so at most 2 pieces shatter per fixed step; the rest keep their place in the queue and shatter on later steps rather than being dropped. A blast that breaks 14 pieces therefore finishes in about 0.14 s.
 
-**Measured:** in the worst-case frame collapse, 19 pieces became 110 fragments, with a peak of 134 bodies. Physics peaked at 3.3 ms per step, and the single shatter step cost 8.1 ms of structural work. Everything was asleep by about 11 s. Box fragments look blocky. Voronoi or authored chunks are part of spike #20.
+**Measured** (focused editor, warm): the worst-case frame collapse turned 18 pieces into 104 fragments, peaking at 120 bodies, at 530–690 FPS. Physics stayed at or below 1.2 ms per step. The structural phase peaked at 7.9 ms on the step that also re-clustered the whole building; a step that only shatters costs about 2.7 ms, of which roughly 0.7 ms is cell geometry and 1.1 ms is spawning colliders. Everything settled and slept.
+
+Authored (Blender) meshes and their own pre-fractured chunks are still spike #20; this covers only procedural pieces.
 
 ## Timing and safe mutation
 
