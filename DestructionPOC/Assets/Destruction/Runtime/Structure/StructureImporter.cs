@@ -85,13 +85,13 @@ namespace DestructionLab
 
             foreach (var (name, bounds, renderer) in raw)
             {
-                if (!IsAxisAligned(renderer, bounds, out float error))
+                if (!IsBoxShaped(renderer, bounds, out float error, out string reason))
                 {
                     result.issues.Add(new ImportIssue
                     {
                         piece = name,
-                        message = $"is rotated or not a box, so its bounding box is {error:P0} larger than the mesh. " +
-                                  "Only unrotated boxes are supported; it was skipped.",
+                        message = $"{reason} Its bounding box holds {error:P0} more volume than the mesh itself, " +
+                                  "and only axis-aligned boxes are supported, so it was skipped.",
                         fatal = false,
                     });
                     result.Skipped++;
@@ -123,19 +123,60 @@ namespace DestructionLab
         }
 
         /// <summary>
-        /// A rotated or non-box mesh has a world bounding box noticeably bigger than the mesh itself. Comparing
-        /// the two volumes catches both without needing the exporter's axis convention.
+        /// A piece must fill its own world bounding box, which only an axis-aligned box does. Comparing the
+        /// mesh's true volume with that box catches rotation, round or tapered shapes, and walls with holes
+        /// cut into them, without needing to know the exporter's axis convention.
         /// </summary>
-        static bool IsAxisAligned(MeshRenderer renderer, Bounds world, out float error)
+        static bool IsBoxShaped(MeshRenderer renderer, Bounds world, out float error, out string reason)
         {
+            error = 0f;
+            reason = "is not a box.";
             var filter = renderer.GetComponent<MeshFilter>();
-            var local = filter.sharedMesh.bounds;
-            Vector3 scale = renderer.transform.lossyScale;
-            float meshVolume = Mathf.Abs(local.size.x * scale.x * local.size.y * scale.y * local.size.z * scale.z);
+            var mesh = filter.sharedMesh;
+            if (!mesh.isReadable)
+            {
+                // Without Read/Write enabled only the bounding box is visible, so rotation is all we can test.
+                var localBounds = mesh.bounds;
+                Vector3 s = renderer.transform.lossyScale;
+                float boxed = Mathf.Abs(localBounds.size.x * s.x * localBounds.size.y * s.y * localBounds.size.z * s.z);
+                if (boxed <= 1e-6f) { reason = "has no volume."; return false; }
+                error = world.size.x * world.size.y * world.size.z / boxed - 1f;
+                if (error >= 0.02f) { reason = "is rotated off the world axes."; return false; }
+                return true;
+            }
+
+            float volume = Mathf.Abs(SignedVolume(mesh, renderer.transform.lossyScale));
+            if (volume <= 1e-6f) { reason = "has no volume, or its mesh is not closed."; return false; }
             float boxVolume = world.size.x * world.size.y * world.size.z;
-            if (meshVolume <= 1e-6f) { error = 0f; return false; }
-            error = boxVolume / meshVolume - 1f;
-            return error < 0.02f;
+            error = boxVolume / volume - 1f;
+            if (error < 0.02f) return true;
+
+            // Separate the two failures so the warning says something useful.
+            var local = mesh.bounds;
+            Vector3 scale = renderer.transform.lossyScale;
+            float localBox = Mathf.Abs(local.size.x * scale.x * local.size.y * scale.y * local.size.z * scale.z);
+            bool rotated = localBox > 1e-6f && boxVolume / localBox - 1f >= 0.02f;
+            bool hollow = localBox > 1e-6f && localBox / volume - 1f >= 0.02f;
+            reason = rotated && hollow ? "is rotated off the world axes and is not a solid box."
+                : rotated ? "is rotated off the world axes."
+                : "is not a solid box (it is rounded, tapered, or has holes cut into it).";
+            return false;
+        }
+
+        /// <summary>Mesh volume from a tetrahedron fan over its triangles. Open meshes give a meaningless result.</summary>
+        static float SignedVolume(Mesh mesh, Vector3 scale)
+        {
+            var verts = mesh.vertices;
+            var tris = mesh.triangles;
+            float v6 = 0f;
+            for (int i = 0; i + 2 < tris.Length; i += 3)
+            {
+                Vector3 a = Vector3.Scale(verts[tris[i]], scale);
+                Vector3 b = Vector3.Scale(verts[tris[i + 1]], scale);
+                Vector3 c = Vector3.Scale(verts[tris[i + 2]], scale);
+                v6 += Vector3.Dot(a, Vector3.Cross(b, c));
+            }
+            return v6 / 6f;
         }
 
         public static string CleanName(string name)

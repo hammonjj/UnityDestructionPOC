@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
@@ -67,6 +68,80 @@ namespace DestructionLab.Tests
             float upper = r.pieces.First(p => p.name == "Upper").center.y;
             Assert.That(lower, Is.EqualTo(0.5f).Within(1e-3f));
             Assert.That(upper - lower, Is.EqualTo(1f).Within(1e-3f));
+        }
+
+        GameObject Primitive(PrimitiveType type, Vector3 center, Vector3 size)
+        {
+            root = new GameObject("Model");
+            var go = GameObject.CreatePrimitive(type);
+            go.name = type.ToString();
+            Object.DestroyImmediate(go.GetComponent<Collider>());
+            go.transform.SetParent(root.transform, false);
+            go.transform.position = center;
+            go.transform.localScale = size;
+            return root;
+        }
+
+        [TestCase(PrimitiveType.Cylinder)]
+        [TestCase(PrimitiveType.Sphere)]
+        [TestCase(PrimitiveType.Capsule)]
+        public void Read_SkipsRoundShapes(PrimitiveType type)
+        {
+            // These fill their bounding box far less than a box does, so importing them as boxes would give
+            // the wrong collision, the wrong mass and overlapping neighbours.
+            var r = StructureImporter.Read(Primitive(type, new Vector3(0f, 1f, 0f), Vector3.one * 2f), Settings());
+            Assert.AreEqual(0, r.pieces.Count);
+            Assert.AreEqual(1, r.Skipped);
+            Assert.That(r.issues.Any(i => i.message.Contains("not a solid box")), Is.True, string.Join("\n", r.issues));
+        }
+
+        [Test]
+        public void Read_AcceptsASolidBoxPrimitive()
+        {
+            var r = StructureImporter.Read(Primitive(PrimitiveType.Cube, new Vector3(0f, 1f, 0f), Vector3.one * 2f), Settings());
+            Assert.AreEqual(1, r.pieces.Count, string.Join("\n", r.issues));
+            Assert.AreEqual(0, r.Skipped);
+        }
+
+        [Test]
+        public void Read_SkipsAWallWithAHoleCutInIt()
+        {
+            // A boolean window leaves a box-shaped bounding volume but much less mesh inside it.
+            root = new GameObject("Model");
+            var go = new GameObject("Wall_with_window__brick", typeof(MeshFilter), typeof(MeshRenderer));
+            go.transform.SetParent(root.transform, false);
+            go.transform.position = new Vector3(0f, 1.5f, 0f);
+            go.GetComponent<MeshFilter>().sharedMesh = FrameMesh(3f, 3f, 0.3f, 1.2f);
+
+            var r = StructureImporter.Read(root, Settings());
+            Assert.AreEqual(0, r.pieces.Count);
+            Assert.That(r.issues.Any(i => i.message.Contains("holes cut into it")), Is.True, string.Join("\n", r.issues));
+        }
+
+        /// <summary>A closed wall of `outer` size with a square opening through its thickness.</summary>
+        static Mesh FrameMesh(float width, float height, float depth, float hole)
+        {
+            var combine = new List<CombineInstance>();
+            float side = (width - hole) / 2f;
+            float band = (height - hole) / 2f;
+            void Slab(Vector3 center, Vector3 size)
+            {
+                var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                combine.Add(new CombineInstance
+                {
+                    mesh = cube.GetComponent<MeshFilter>().sharedMesh,
+                    transform = Matrix4x4.TRS(center, Quaternion.identity, size),
+                });
+                Object.DestroyImmediate(cube);
+            }
+            Slab(new Vector3(-(hole + side) / 2f, 0f, 0f), new Vector3(side, height, depth));
+            Slab(new Vector3((hole + side) / 2f, 0f, 0f), new Vector3(side, height, depth));
+            Slab(new Vector3(0f, (hole + band) / 2f, 0f), new Vector3(hole, band, depth));
+            Slab(new Vector3(0f, -(hole + band) / 2f, 0f), new Vector3(hole, band, depth));
+            var mesh = new Mesh();
+            mesh.CombineMeshes(combine.ToArray(), true, true);
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         [Test]
