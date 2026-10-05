@@ -98,9 +98,12 @@ namespace DestructionLab
 
         // ------------------------------------------------------------------ build / reset
 
+        public int BuildCount { get; private set; }
+
         public void Build(Scenario scenario)
         {
             Clear();
+            BuildCount++;
             CurrentScenario = scenario;
             scenario.configure?.Invoke(Settings);
             var defs = scenario.build();

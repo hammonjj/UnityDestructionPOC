@@ -143,7 +143,8 @@ namespace DestructionLab
             c.capShear = c.authoredShear;
             c.capBending = c.authoredBending;
 
-            c.impactEnergyCapacity = Mathf.Min(ma.impactToughness, mb.impactToughness) * c.area;
+            c.impactEnergyCapacity = Mathf.Min(ma.impactToughness, mb.impactToughness) * c.area
+                                     * (c.b < 0 ? settings.structure.groundCapacityFactor : 1f);
             ApplyResidualCapacity(c, settings);
         }
 

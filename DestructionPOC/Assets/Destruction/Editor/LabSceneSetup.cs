@@ -58,7 +58,7 @@ namespace DestructionLab.EditorTools
             var light = Object.FindAnyObjectByType<Light>();
             if (light != null)
             {
-                light.transform.rotation = Quaternion.Euler(48f, -35f, 0f);
+                light.transform.rotation = Quaternion.Euler(50f, 150f, 0f); // lights the +z faces most scenarios present
                 light.intensity = 1.6f;
                 light.shadows = LightShadows.Soft;
             }

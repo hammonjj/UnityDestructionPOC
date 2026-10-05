@@ -20,6 +20,8 @@ namespace DestructionLab
         GameObject helpPanel;
         float nextText;
         float fps = 60f;
+        float physicsMaxMs;
+        int lastBuildCount = -1;
         ProfilerRecorder physicsRecorder;
 
         static readonly Color PanelColor = new Color(0.07f, 0.08f, 0.1f, 0.82f);
@@ -125,6 +127,7 @@ namespace DestructionLab
             fps = Mathf.Lerp(fps, 1f / Mathf.Max(1e-4f, Time.unscaledDeltaTime), 0.05f);
             if (Time.unscaledTime < nextText) return;
             nextText = Time.unscaledTime + 0.2f;
+            if (world.BuildCount != lastBuildCount) { lastBuildCount = world.BuildCount; physicsMaxMs = 0f; }
 
             foreach (var (b, i) in scenarioButtons) Colorize(b, i == lab.ScenarioIndex);
             foreach (var (b, t) in toolButtons) Colorize(b, t == lab.Tool);
@@ -147,8 +150,15 @@ namespace DestructionLab
         string Stats()
         {
             var st = world.stats;
-            string phys = physicsRecorder.Valid && physicsRecorder.Count > 0
-                ? $"{physicsRecorder.LastValue / 1e6:0.00} ms" : "n/a";
+            string phys = "n/a";
+            if (physicsRecorder.Valid && physicsRecorder.Count > 0)
+            {
+                // Frame-based samples are 0 on frames without a fixed step: report the recent maximum.
+                long max = 0;
+                for (int i = 0; i < physicsRecorder.Count; i++) max = System.Math.Max(max, physicsRecorder.GetSample(i).Value);
+                physicsMaxMs = Mathf.Max(physicsMaxMs, max / 1e6f);
+                phys = $"{max / 1e6:0.00} ms (max {physicsMaxMs:0.00})";
+            }
             float since = world.SimTime;
             return $"<b>Stats</b>  FPS {fps:0}   physics {phys}   structural {st.structuralMs:0.00} ms (max {st.maxStructuralMs:0.00})\n" +
                    $"sim time {since:0.0} s   pieces {st.pieces} (static {st.staticPieces})   bodies active {st.dynamicBodies} / sleeping {st.sleepingBodies}   joints {st.activeJoints}\n" +

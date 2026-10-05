@@ -7,7 +7,7 @@ namespace DestructionLab
     /// <summary>Damage sources: tool actions (queued from Update) and filtered contacts (queued from physics).</summary>
     public sealed partial class DestructionWorld
     {
-        enum ActionKind { Damage, Explosion, Sever, DropBlock }
+        enum ActionKind { Damage, Explosion, Sever, DropBlock, Demolish }
 
         struct ToolAction
         {
@@ -72,7 +72,43 @@ namespace DestructionLab
         public void DropBlock(Vector3 point, float mass, float size) =>
             actions.Add(new ToolAction { kind = ActionKind.DropBlock, point = point, mass = mass, size = size });
 
+        /// <summary>Removes a piece entirely (e.g. a demolished support): its connections are destroyed and it
+        /// stops colliding, so it can no longer support anything by contact.</summary>
+        public void Demolish(int piece) =>
+            actions.Add(new ToolAction { kind = ActionKind.Demolish, piece = piece });
+
         public int PendingActions => actions.Count;
+
+        void ApplyDemolish(int i)
+        {
+            if (i < 0 || i >= Graph.PieceCount || pieces[i].removed) return;
+            foreach (int cid in Graph.adjacency[i])
+            {
+                var c = Graph.connections[cid];
+                if (c.state == ConnectionState.Structural)
+                {
+                    c.violentPending = true;
+                    c.lastDamageSource = DamageSource.Direct;
+                    c.damage = 1f;
+                }
+                else if (c.state == ConnectionState.Residual)
+                {
+                    c.residualDamage = 1f;
+                    c.residualSource = DamageSource.Direct;
+                }
+            }
+            var p = pieces[i];
+            p.removed = true;
+            colliderToPiece.Remove(p.box);
+            var k = p.cluster;
+            if (k != null)
+            {
+                k.pieces.Remove(i);
+                if (!k.isStatic && k.pieces.Count == 0) DestroyCluster(k);
+            }
+            p.gameObject.SetActive(false);
+            WakeAround(StaticCluster);
+        }
 
         void ProcessActions()
         {
@@ -102,6 +138,7 @@ namespace DestructionLab
                         }
                         break;
                     case ActionKind.DropBlock: SpawnBlock(a); break;
+                    case ActionKind.Demolish: ApplyDemolish(a.piece); break;
                 }
             }
             actions.Clear();

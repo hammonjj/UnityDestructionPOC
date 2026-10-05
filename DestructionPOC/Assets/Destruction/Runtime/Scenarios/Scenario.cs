@@ -174,12 +174,12 @@ namespace DestructionLab
         {
             id = "support",
             title = "3 · Loss of support",
-            instruction = "Press T (or explode the middle pier) to remove the load-bearing pier.",
+            instruction = "Press T to demolish the load-bearing middle pier (or blow it up with the Explode tool).",
             expected = "The middle deck joints are overloaded and turn into residual hinges; the deck sags into a V and may tear free. The abutments stand.",
             build = Bridge,
             highlight = new[] { "Pier" },
-            triggerLabel = "Remove pier",
-            trigger = w => KnockOut(w, "Pier", new Vector3(0f, -0.6f, -0.9f), 60000f),
+            triggerLabel = "Demolish pier",
+            trigger = w => w.Demolish(w.Graph.pieces.FindIndex(p => p.name == "Pier")),
             cameraPivot = new Vector3(0f, 2f, 0f), cameraDistance = 18f, cameraYaw = -20f, cameraPitch = 12f,
         };
 
@@ -213,7 +213,7 @@ namespace DestructionLab
                 for (int i = 1; i <= 4; i++) ids.AddRange(ConnectionsBetween(w, "Balcony", $"Pier {i}"));
                 w.Sever(ids);
             },
-            cameraPivot = new Vector3(0f, 3f, 1f), cameraDistance = 15f, cameraYaw = -50f, cameraPitch = 18f,
+            cameraPivot = new Vector3(0f, 3f, 1f), cameraDistance = 15f, cameraYaw = 135f, cameraPitch = 18f,
         };
 
         // ------------------------------------------------------------------ 4: partial attachment
@@ -251,7 +251,7 @@ namespace DestructionLab
             highlight = new[] { "Prop L", "Prop R" },
             triggerLabel = "Knock out props",
             trigger = KnockProps,
-            cameraPivot = new Vector3(0f, 3.5f, 2f), cameraDistance = 15f, cameraYaw = -60f, cameraPitch = 12f,
+            cameraPivot = new Vector3(0f, 3.5f, 2f), cameraDistance = 15f, cameraYaw = 125f, cameraPitch = 12f,
         };
 
         static Scenario ArrestedFloor() => new Scenario
@@ -264,7 +264,7 @@ namespace DestructionLab
             highlight = new[] { "Prop L", "Prop R" },
             triggerLabel = "Knock out props",
             trigger = KnockProps,
-            cameraPivot = new Vector3(0f, 2f, 2.5f), cameraDistance = 14f, cameraYaw = -60f, cameraPitch = 15f,
+            cameraPivot = new Vector3(0f, 2f, 2.5f), cameraDistance = 14f, cameraYaw = 125f, cameraPitch = 15f,
         };
 
         // ------------------------------------------------------------------ 5: cascade
@@ -294,7 +294,7 @@ namespace DestructionLab
             highlight = new[] { "Balcony 1" },
             triggerLabel = "Cut top balcony",
             trigger = w => w.Sever(ConnectionsOf(w, "Balcony 1")),
-            cameraPivot = new Vector3(0f, 5f, 1f), cameraDistance = 20f, cameraYaw = -55f, cameraPitch = 12f,
+            cameraPivot = new Vector3(0f, 5f, 1f), cameraDistance = 20f, cameraYaw = 125f, cameraPitch = 12f,
         };
 
         // ------------------------------------------------------------------ 6: rubble
