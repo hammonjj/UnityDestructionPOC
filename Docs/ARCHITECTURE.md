@@ -21,7 +21,7 @@ Two sources, one representation. Code-defined scenarios emit `PieceDef`s directl
 
 Validation is deliberately loud rather than silent:
 
-- A rotated or non-box mesh has a world bounding box noticeably larger than the mesh itself, so comparing the two volumes catches both cases. Over 2% larger is skipped with a warning naming the object. Rotations in multiples of 90° pass, since the box stays axis-aligned.
+- A piece must fill its own world bounding box, which only an axis-aligned box does. The mesh's true volume, summed as a tetrahedron fan over its triangles, is compared with that box; more than 2% of the box left empty is skipped with a warning naming the object. That catches rotation, rounded and tapered shapes, and walls with openings cut through them, and the warning says which. Rotations in multiples of 90° pass, since the box stays axis-aligned. When a mesh has Read/Write disabled only its bounding box is visible, so the check falls back to detecting rotation alone.
 - Pieces thinner than 2 cm are skipped; they would make useless connections.
 - Interpenetrating pieces are reported, because the connection search expects pieces to touch face to face.
 - A model with nothing usable is an error, not an empty scenario.

@@ -86,7 +86,7 @@ Scenario 8 is imported from `Tools/blender/SampleBuilding.blend`, exported to
 **The convention**
 
 1. **One mesh object per structural piece.** The piece is the unit that breaks off, hinges and shatters, so split walls into panels rather than modelling one wall object.
-2. **Every object is an unrotated box.** Rotations in multiples of 90° are fine. Apply scale and rotation before exporting. Anything genuinely rotated or non-box is skipped with a warning naming the object.
+2. **Every object is a solid box, unrotated.** Rotations in multiples of 90° are fine. Apply scale and rotation before exporting. Rotated meshes, rounded or tapered ones, and walls with openings cut through them are all skipped with a warning naming the object, because a piece has to fill its own bounding box.
 3. **Metres, and pieces touch rather than overlap.** The importer finds connections from shared faces, so interpenetration is reported as a warning and leaves the structure misread.
 4. **Anything resting on y = 0 is anchored.** The model is dropped so its lowest point sits on the ground.
 5. **Material comes from a name suffix:** `__concrete` (the default), `__wood`, `__brick`. Add `__noshatter` to a piece that may break off but should never fragment.
@@ -102,6 +102,15 @@ So `Wall_U_N0__brick` is an upper-storey north wall panel in brick.
 ```
 
 It also fails loudly if any two pieces interpenetrate, which is the easiest mistake to make.
+
+**Check before exporting.** `Tools/blender/skills/destruction-blockout/validate_blockout.py` applies the same rules inside Blender and names every offending object, including pieces that touch nothing or have no path to the ground. It exits non-zero when it finds errors.
+
+```sh
+/Applications/Blender.app/Contents/MacOS/Blender --background your_building.blend \
+    --python Tools/blender/skills/destruction-blockout/validate_blockout.py
+```
+
+The same folder holds `SKILL.md`, a self-contained brief for a modelling agent.
 
 **In Unity:** drop the FBX into `Assets/Destruction/Models/`, run **Destruction Lab → Reimport Authored Model** to apply the import settings the lab needs (file scale, readable meshes, no generated colliders), then assign it to the `Destruction Lab` object's **Authored Model** field. It appears as the last scenario. The scenario panel reports how many pieces were read and how many were skipped; warnings go to the console.
 
@@ -156,7 +165,7 @@ Measured on an Apple M5 Pro (16 cores, 24 GB) in the editor, Play mode, Game vie
 | Check | Result |
 |---|---|
 | Compile | 0 errors, 0 warnings from project code |
-| EditMode / PlayMode tests | 44/44 and 28/28 passing |
+| EditMode / PlayMode tests | 49/49 and 28/28 passing |
 | Console during a full scenario sweep | 0 errors, 0 warnings from project code |
 | Authored Blender model (2026-10-05) | 51 pieces read with no warnings, 141 connections, 13 ground anchors. Stable with 0 bodies and 0 failures. A corner blast shattered the pier, left residual hinges on the storey above, and settled with 26 sleeping bodies. |
 | Spike S1 hang | Settles at 77.6° and holds for 60 s. Angle change 0.0°, \|ω\| < 0.0001 rad/s, anchor drift < 1 cm. Joint force 94.3 kN against 94.2 kN weight. Hinge moment 53.5 kN·m against 52.0 analytic. Residual q 0.70, using the test's 1.6× residual strength. |
