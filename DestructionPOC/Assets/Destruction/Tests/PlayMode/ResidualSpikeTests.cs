@@ -119,9 +119,13 @@ namespace DestructionLab.Tests
             f.Steps(2);
             Assert.AreEqual(ConnectionState.Severed, c.state);
             Assert.AreEqual(FailureReason.DirectDamage, c.reason);
+            // Three direct hits also exceed the piece's shatter threshold: the floor breaks into rubble.
             float y0 = f.PieceTransform("Floor").position.y;
+            Assert.IsTrue(f.world.pieces[floor].removed, "floor shattered");
+            var frags = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Where(f.world.pieces, p => p.isFragment && !p.removed));
+            Assert.That(frags.Count, Is.GreaterThanOrEqualTo(2));
             f.Seconds(1f);
-            Assert.That(f.PieceTransform("Floor").position.y, Is.LessThan(y0 - 0.5f), "floor falls after tearing");
+            Assert.That(System.Linq.Enumerable.Average(frags, p => p.transform.position.y), Is.LessThan(y0 - 0.5f), "rubble falls after tearing");
             yield return null;
         }
 

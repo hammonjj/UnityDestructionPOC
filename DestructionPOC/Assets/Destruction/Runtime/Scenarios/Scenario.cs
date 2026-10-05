@@ -40,6 +40,7 @@ namespace DestructionLab
                 ArrestedFloor(),
                 SecondaryCollapse(),
                 PersistentRubble(),
+                Shatter(),
             };
         }
 
@@ -127,8 +128,8 @@ namespace DestructionLab
         {
             id = "local",
             title = "2 · Local damage",
-            instruction = "Damage tool: click the highlighted first-floor panel three times (or press T). Two clicks and a wait also work: the weakened joints then fail by overload.",
-            expected = "Only that panel breaks out and drops to the ground; the frame around it stays up.",
+            instruction = "Damage tool: click the highlighted first-floor panel three times (or press T). Try two clicks and a wait instead: the weakened joints then fail by overload without shattering.",
+            expected = "Three clicks shatter only that panel into rubble that drops to the ground; the frame around it stays up. With two clicks the panel detaches or hinges whole (overload never shatters).",
             build = () => Frame(2, true),
             highlight = new[] { "Slab F1 11" },
             triggerLabel = "Damage panel ×3",
@@ -161,13 +162,13 @@ namespace DestructionLab
 
         /// <summary>Severs every connection of a piece and pushes it out of the way, so it no longer
         /// supports anything by contact. The push carries no damage.</summary>
-        static void KnockOut(DestructionWorld w, string pieceName, Vector3 pushFrom, float impulse)
+        /// <summary>Severs every connection of a piece and kicks it away (velocity change applied after the
+        /// commit), so it no longer supports anything by contact.</summary>
+        static void KnockOut(DestructionWorld w, string pieceName, Vector3 velocityChange)
         {
             w.Sever(ConnectionsOf(w, pieceName));
             int i = w.Graph.pieces.FindIndex(p => p.name == pieceName);
-            if (i < 0) return;
-            Vector3 c = w.Graph.pieces[i].center;
-            w.Explode(c + pushFrom, 1.2f, 0f, impulse);
+            if (i >= 0) w.Push(i, velocityChange);
         }
 
         static Scenario LossOfSupport() => new Scenario
@@ -237,8 +238,8 @@ namespace DestructionLab
 
         static void KnockProps(DestructionWorld w)
         {
-            KnockOut(w, "Prop L", new Vector3(0f, -0.3f, -0.6f), 6000f);
-            KnockOut(w, "Prop R", new Vector3(0f, -0.3f, -0.6f), 6000f);
+            KnockOut(w, "Prop L", new Vector3(0f, 1f, 6f));
+            KnockOut(w, "Prop R", new Vector3(0f, 1f, 6f));
         }
 
         static Scenario HangingFloor() => new Scenario
@@ -295,6 +296,40 @@ namespace DestructionLab
             triggerLabel = "Cut top balcony",
             trigger = w => w.Sever(ConnectionsOf(w, "Balcony 1")),
             cameraPivot = new Vector3(0f, 5f, 1f), cameraDistance = 20f, cameraYaw = 125f, cameraPitch = 12f,
+        };
+
+        // ------------------------------------------------------------------ 7: shatter
+
+        /// <summary>A panel wall between two piers under a lintel slab, plus a loose block for drop tests.</summary>
+        static List<PieceDef> PanelWall()
+        {
+            var list = new List<PieceDef>
+            {
+                PieceDef.Box("Pier W", new Vector3(-3.4f, 1.6f, 0f), new Vector3(0.8f, 3.2f, 0.6f), PieceKind.Column),
+                PieceDef.Box("Pier E", new Vector3(3.4f, 1.6f, 0f), new Vector3(0.8f, 3.2f, 0.6f), PieceKind.Column),
+                PieceDef.Box("Lintel", new Vector3(0f, 3.4f, 0f), new Vector3(7.6f, 0.4f, 0.6f), PieceKind.Slab),
+            };
+            for (int row = 0; row < 2; row++)
+            for (int col = 0; col < 3; col++)
+            {
+                list.Add(PieceDef.Box($"Panel {row}{col}",
+                    new Vector3(-2f + col * 2f, 0.8f + row * 1.6f, 0f),
+                    new Vector3(2f, 1.6f, 0.3f), PieceKind.Wall));
+            }
+            return list;
+        }
+
+        static Scenario Shatter() => new Scenario
+        {
+            id = "shatter",
+            title = "7 · Shatter into rubble",
+            instruction = "Press T to set off a charge against the middle of the wall. Then try the Explode tool elsewhere, Damage-click a panel 3×, or drop a block from high up (Drop block mass slider).",
+            expected = "Panels inside the blast core shatter into chunks that fly, fall and pile up as rubble; panels further out only lose joints and drop or hinge whole. The lintel loses support where panels vanished and may sag. Rubble sleeps and stays collidable.",
+            build = PanelWall,
+            highlight = new[] { "Panel 01", "Panel 11" },
+            triggerLabel = "Blast the wall",
+            trigger = w => w.Explode(new Vector3(0f, 1.6f, -0.6f), 2.6f, 1.6f, 12000f),
+            cameraPivot = new Vector3(0f, 1.6f, 1f), cameraDistance = 14f, cameraYaw = 155f, cameraPitch = 16f,
         };
 
         // ------------------------------------------------------------------ 6: rubble

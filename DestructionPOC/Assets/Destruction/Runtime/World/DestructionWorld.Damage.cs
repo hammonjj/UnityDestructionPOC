@@ -20,6 +20,13 @@ namespace DestructionLab
 
         struct PendingImpulse { public Vector3 point; public float radius, impulse; }
 
+        struct PendingPush { public int piece; public Vector3 deltaV; }
+        readonly List<PendingPush> pendingPushes = new List<PendingPush>();
+
+        /// <summary>Gives the piece's rigid body a velocity change after this step's commit (e.g. a knocked-out prop).</summary>
+        public void Push(int piece, Vector3 velocityChange) =>
+            pendingPushes.Add(new PendingPush { piece = piece, deltaV = velocityChange });
+
         struct ContactRecord
         {
             public int a, b;           // piece indices, −1 for non-piece colliders
@@ -97,16 +104,7 @@ namespace DestructionLab
                     c.residualSource = DamageSource.Direct;
                 }
             }
-            var p = pieces[i];
-            p.removed = true;
-            colliderToPiece.Remove(p.box);
-            var k = p.cluster;
-            if (k != null)
-            {
-                k.pieces.Remove(i);
-                if (!k.isStatic && k.pieces.Count == 0) DestroyCluster(k);
-            }
-            p.gameObject.SetActive(false);
+            RemovePieceFromWorld(i);
             WakeAround(StaticCluster);
         }
 
@@ -161,6 +159,9 @@ namespace DestructionLab
                     c.residualSource = DamageSource.Direct;
                 }
             }
+            var p = pieces[piece];
+            p.shatterDamage += amount;
+            if (p.shatterDamage >= Settings.fragments.directShatterDamage - 1e-4f) RequestShatter(piece, FailureReason.DirectDamage);
             WakePiece(piece);
         }
 
@@ -187,6 +188,7 @@ namespace DestructionLab
                     c.residualSource = DamageSource.Explosion;
                 }
             }
+            if (a.amount > 0f) RequestExplosionShatter(a.point, inner);
             pendingImpulses.Add(new PendingImpulse { point = a.point, radius = a.radius, impulse = a.impulse });
             ExplosionCount++;
         }
@@ -194,7 +196,16 @@ namespace DestructionLab
         /// <summary>Applied after the commit so bodies created by the same blast receive it exactly once.</summary>
         void ApplyPendingImpulses()
         {
+            foreach (var push in pendingPushes)
+            {
+                if (push.piece < 0 || push.piece >= pieces.Count || pieces[push.piece].removed) continue;
+                var body = pieces[push.piece].cluster != null ? pieces[push.piece].cluster.body : null;
+                if (body != null) body.AddForce(push.deltaV, ForceMode.VelocityChange);
+            }
+            pendingPushes.Clear();
             if (pendingImpulses.Count == 0) return;
+            // Fragments and clusters created this step must be visible to the overlap query.
+            Physics.SyncTransforms();
             var seen = new HashSet<Rigidbody>();
             foreach (var p in pendingImpulses)
             {
@@ -203,7 +214,16 @@ namespace DestructionLab
                 {
                     var rb = col.attachedRigidbody;
                     if (rb == null || rb.isKinematic || !seen.Add(rb)) continue;
-                    rb.AddExplosionForce(p.impulse, p.point, p.radius, 0.4f, ForceMode.Impulse);
+                    // Linear falloff from the centre, slight upward bias, and a cap on the velocity change so
+                    // light fragments get a believable kick instead of a fixed impulse launching them.
+                    Vector3 com = rb.worldCenterOfMass;
+                    Vector3 dir = com - p.point;
+                    float dist = dir.magnitude;
+                    dir = (dist > 1e-3f ? dir / dist : Vector3.up) + Vector3.up * 0.3f;
+                    dir.Normalize();
+                    float falloff = Mathf.Clamp01(1f - dist / Mathf.Max(0.01f, p.radius));
+                    float mag = Mathf.Min(p.impulse * falloff, rb.mass * Settings.tools.explosionMaxDeltaV);
+                    if (mag > 0f) rb.AddForceAtPosition(dir * mag, Vector3.Lerp(com, col.ClosestPoint(p.point), 0.5f), ForceMode.Impulse);
                 }
                 LastExplosionBodyCount = seen.Count;
             }
@@ -325,6 +345,9 @@ namespace DestructionLab
         void ApplyImpact(int piece, float energy)
         {
             if (piece < 0 || pieces[piece].removed) return;
+            // Hard enough hits shatter the piece itself, connected or loose.
+            if (energy / Mathf.Max(1f, Graph.mass[piece]) >= Settings.fragments.impactShatterEnergyPerKg)
+                RequestShatter(piece, FailureReason.Impact);
             var adj = Graph.adjacency[piece];
             float capacity = 0f;
             foreach (int cid in adj)

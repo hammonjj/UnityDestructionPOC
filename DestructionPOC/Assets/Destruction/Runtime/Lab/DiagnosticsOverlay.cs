@@ -131,7 +131,8 @@ namespace DestructionLab
                 Cross(k.body.worldCenterOfMass, 0.25f, k.body.IsSleeping() ? Sleeping : Active);
             }
 
-            if (lab.SelectedPiece >= 0 && lab.SelectedPiece < world.pieces.Count) Outline(lab.SelectedPiece, Selected);
+            if (lab.SelectedPiece >= 0 && lab.SelectedPiece < world.pieces.Count && !world.pieces[lab.SelectedPiece].removed)
+                Outline(lab.SelectedPiece, Selected);
             var s = world.CurrentScenario;
             if (s != null && !lab.TriggerUsed)
             {
@@ -139,7 +140,7 @@ namespace DestructionLab
                 foreach (var name in s.highlight)
                 {
                     int i = g.pieces.FindIndex(p => p.name == name);
-                    if (i >= 0) Outline(i, new Color(0.2f, 1f, 1f, 0.4f + 0.6f * pulse));
+                    if (i >= 0 && !world.pieces[i].removed) Outline(i, new Color(0.2f, 1f, 1f, 0.4f + 0.6f * pulse));
                 }
             }
         }
@@ -163,6 +164,8 @@ namespace DestructionLab
                 var piece = world.pieces[i];
                 if (piece == null || piece.removed) continue;
                 var baseColor = world.Settings.Material(g.pieces[i].material).color;
+                if (piece.isFragment) baseColor *= 0.8f; // broken faces read darker
+                baseColor.a = 1f;
                 float worst = 0f;
                 bool residual = false;
                 foreach (int cid in g.adjacency[i])

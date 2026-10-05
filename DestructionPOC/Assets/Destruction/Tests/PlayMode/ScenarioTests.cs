@@ -35,12 +35,15 @@ namespace DestructionLab.Tests
             float y0 = f.world.pieces[target].transform.position.y;
             f.Trigger();
             f.Seconds(6f);
-            var detached = f.world.pieces.Where(p => !p.cluster.isStatic).Select(p => p.name).ToList();
-            Debug.Log($"[Local] detached: {string.Join(", ", detached)}");
+            // Three clicks shatter the panel; nothing else in the frame may move.
+            var detached = f.world.pieces.Where(p => !p.removed && !p.isFragment && !p.cluster.isStatic).Select(p => p.name).ToList();
+            var frags = f.world.pieces.Where(p => p.isFragment && !p.removed).ToList();
+            Debug.Log($"[Local] shattered: {f.world.pieces[target].removed}, fragments {frags.Count}, other detached: {string.Join(", ", detached)}");
             Debug.Log(f.LogText());
-            Assert.That(detached, Does.Contain("Slab F1 11"));
-            Assert.That(detached.Count, Is.LessThanOrEqualTo(2), "damage must stay local");
-            Assert.That(f.world.pieces[target].transform.position.y, Is.LessThan(y0 - 1.5f), "panel should drop out");
+            Assert.IsTrue(f.world.pieces[target].removed, "panel shatters");
+            Assert.That(frags.Count, Is.GreaterThanOrEqualTo(2));
+            Assert.That(detached.Count, Is.LessThanOrEqualTo(1), "damage must stay local");
+            Assert.That(frags.Average(p => p.transform.position.y), Is.LessThan(y0 - 1.5f), "rubble drops out");
             yield return null;
         }
 

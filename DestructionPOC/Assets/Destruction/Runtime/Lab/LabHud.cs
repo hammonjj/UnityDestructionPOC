@@ -93,6 +93,10 @@ namespace DestructionLab
             var tg = Row(right);
             MakeToggleButton(tg, "Residual joints", () => s.residual.enabled, v => s.residual.enabled = v);
             MakeToggleButton(tg, "Impact damage", () => s.impact.enabled, v => s.impact.enabled = v);
+            Slider(right, "Shatter impact (J/kg)", 5f, 100f, s.fragments.impactShatterEnergyPerKg, v => s.fragments.impactShatterEnergyPerKg = v, "0");
+            Slider(right, "Fragment size (m)", 0.3f, 2f, s.fragments.targetSize, v => s.fragments.targetSize = v, "0.00");
+            var tg2 = Row(right);
+            MakeToggleButton(tg2, "Fragmentation", () => s.fragments.enabled, v => s.fragments.enabled = v);
 
             // Bottom-left: help.
             helpPanel = Panel(root, new Vector2(0f, 0f), new Vector2(12f, 12f), 400f).gameObject;
@@ -162,7 +166,9 @@ namespace DestructionLab
             float since = world.SimTime;
             return $"<b>Stats</b>  FPS {fps:0}   physics {phys}   structural {st.structuralMs:0.00} ms (max {st.maxStructuralMs:0.00})\n" +
                    $"sim time {since:0.0} s   pieces {st.pieces} (static {st.staticPieces})   bodies active {st.dynamicBodies} / sleeping {st.sleepingBodies}   joints {st.activeJoints}\n" +
-                   $"connections structural {st.structural} · residual {st.residual} · severed {st.severed}   failures {world.log.Total} (pending {st.pendingFailures})   contacts {st.contactsThisStep} impacts {st.impactsThisStep}" +
+                   $"connections structural {st.structural} · residual {st.residual} · severed {st.severed}   failures {world.log.Total} (pending {st.pendingFailures})   contacts {st.contactsThisStep} impacts {st.impactsThisStep}\n" +
+                   $"shattered pieces {st.shatteredPieces} → live fragments {st.liveFragments} / {world.Settings.fragments.maxLiveFragments}" +
+                   (st.shatterSkippedForBudget > 0 ? $"   (over budget, detached whole: {st.shatterSkippedForBudget})" : "") +
                    (world.Paused ? "   <color=#ffd27f>PAUSED</color>" : "");
         }
 

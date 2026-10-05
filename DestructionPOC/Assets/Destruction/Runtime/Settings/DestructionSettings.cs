@@ -137,8 +137,33 @@ namespace DestructionLab
         [Range(0f, 1f)] public float explosionInnerFraction = 0.35f;
         [Tooltip("Impulse at the centre, N·s, applied once per rigid body.")]
         public float explosionImpulse = 12000f;
+        [Tooltip("Largest velocity change an explosion gives any single body, m/s.")]
+        public float explosionMaxDeltaV = 9f;
         [Tooltip("Mass of a dropped block, kg.")] public float dropBlockMass = 2000f;
         public float dropBlockHeight = 4f;
+    }
+
+    /// <summary>Fragmentation: violent failures shatter pieces into rubble; overload failures never do.</summary>
+    [Serializable]
+    public class FragmentSettings
+    {
+        public bool enabled = true;
+        [Tooltip("Approximate fragment edge length, m.")]
+        [Range(0.3f, 3f)] public float targetSize = 0.8f;
+        [Range(2, 32)] public int minPerPiece = 3;
+        [Range(2, 32)] public int maxPerPiece = 12;
+        [Tooltip("Smallest fragment dimension, m.")]
+        public float minSize = 0.15f;
+        [Tooltip("Live fragment budget. Over budget, a piece that should shatter detaches whole instead.")]
+        public int maxLiveFragments = 300;
+        [Tooltip("Accumulated direct (click) damage on a piece that shatters it.")]
+        public float directShatterDamage = 1f;
+        public bool shatterOnExplosionCore = true;
+        [Tooltip("Impact energy per kg of the struck piece that shatters it, J/kg. A 3 m fall onto concrete gives about 13 J/kg.")]
+        public float impactShatterEnergyPerKg = 20f;
+        [Tooltip("Fragments of a shattered piece never shatter again (avoids gravel).")]
+        public bool fragmentsCanShatter = false;
+        public int seed = 1729;
     }
 
     [CreateAssetMenu(menuName = "Destruction Lab/Settings", fileName = "DestructionSettings")]
@@ -149,6 +174,7 @@ namespace DestructionLab
         public PhysicsSettings physics = new PhysicsSettings();
         public ImpactSettings impact = new ImpactSettings();
         public ToolSettings tools = new ToolSettings();
+        public FragmentSettings fragments = new FragmentSettings();
         public List<MaterialSpec> materials = DefaultMaterials();
 
         [Header("Rendering (assigned by the setup menu; created at runtime when empty)")]

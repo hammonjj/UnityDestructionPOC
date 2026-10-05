@@ -145,7 +145,10 @@ namespace DestructionLab
         {
             ClearJoints();
             actions.Clear();
+            shatterRequests.Clear();
+            shatterOrder.Clear();
             pendingImpulses.Clear();
+            pendingPushes.Clear();
             contacts.Clear();
             contactLoads.Clear();
             pairCooldown.Clear();
@@ -158,6 +161,7 @@ namespace DestructionLab
             SimTime = 0f;
             StepIndex = 0;
             stats = default;
+            removedHolder = null;
             nextClusterId = 0;
             if (root != null)
             {
@@ -183,6 +187,7 @@ namespace DestructionLab
             ProcessContacts(dt);
             ProcessActions();
             KillPlane();
+            ExecuteShatters();
 
             GatherPoses();
             ResizeScratch();
@@ -215,7 +220,15 @@ namespace DestructionLab
             rotations.Clear();
             for (int i = 0; i < n; i++)
             {
-                var t = pieces[i].transform;
+                var p = pieces[i];
+                if (p == null || p.removed)
+                {
+                    // Removed pieces have only severed connections; their pose no longer matters.
+                    poses.Add(Graph.pieces[i].center);
+                    rotations.Add(Quaternion.identity);
+                    continue;
+                }
+                var t = p.transform;
                 poses.Add(t.position);
                 rotations.Add(t.rotation);
             }
@@ -357,6 +370,8 @@ namespace DestructionLab
             log.Add(e);
             OnBreak?.Invoke(e);
         }
+
+        void RaiseBreak(BreakEvent e) => OnBreak?.Invoke(e);
 
         // ------------------------------------------------------------------ clusters
 
@@ -515,13 +530,14 @@ namespace DestructionLab
                 if (k.isStatic || k.body == null || k.body.position.y > y) continue;
                 foreach (int i in k.pieces)
                 {
-                    pieces[i].removed = true;
                     foreach (var cid in Graph.adjacency[i])
                     {
                         var c = Graph.connections[cid];
-                        if (c.state != ConnectionState.Severed) { c.state = ConnectionState.Severed; }
+                        if (c.state != ConnectionState.Severed) { c.state = ConnectionState.Severed; DestroyJointFor(c); }
                     }
+                    ParkRemovedPiece(i);
                 }
+                k.pieces.Clear();
                 DestroyCluster(k);
             }
         }
@@ -621,7 +637,9 @@ namespace DestructionLab
 
         public Vector3 ConnectionWorldCenter(Connection c)
         {
-            var t = pieces[c.a].transform;
+            var p = pieces[c.a];
+            if (p == null || p.removed) return Graph.pieces[c.a].center + c.centerOffsetA;
+            var t = p.transform;
             return t.position + t.rotation * c.centerOffsetA;
         }
 
@@ -651,6 +669,9 @@ namespace DestructionLab
             stats.severed = x;
             stats.maxDynamicBodies = Mathf.Max(stats.maxDynamicBodies, dyn + sleep);
             stats.maxActiveJoints = Mathf.Max(stats.maxActiveJoints, joints.Count);
+            int frags = 0;
+            foreach (var p in pieces) if (p != null && p.isFragment && !p.removed) frags++;
+            stats.liveFragments = frags;
         }
     }
 }

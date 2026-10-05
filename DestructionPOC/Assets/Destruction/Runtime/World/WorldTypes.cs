@@ -13,6 +13,10 @@ namespace DestructionLab
         public MeshRenderer meshRenderer;
         public bool removed;
         public bool shrunk;
+        /// <summary>Accumulated direct (click) damage on the piece itself; shatters at the configured threshold.</summary>
+        public float shatterDamage;
+        /// <summary>Created by shattering another piece.</summary>
+        public bool isFragment;
     }
 
     /// <summary>A rigid group of pieces. Static clusters have no Rigidbody (the intact anchored structure).</summary>
@@ -38,9 +42,15 @@ namespace DestructionLab
         public FailureReason reason;
         public float q;
         public float damage;
+        /// <summary>Shatter events: connection is −1 and this is the number of fragments created.</summary>
+        public int fragments;
+
+        public bool IsShatter => connection < 0;
 
         public override string ToString()
         {
+            if (IsShatter)
+                return $"{time,6:0.00}s  {pieceA} shattered into {fragments} fragments  ({FailureReasonText.Label(reason)})";
             string arrow = from == ConnectionState.Structural
                 ? (to == ConnectionState.Residual ? "structural → residual" : "structural → severed")
                 : "residual → severed";
@@ -98,5 +108,8 @@ namespace DestructionLab
         public float maxStructuralMs;
         public int maxDynamicBodies;
         public int maxActiveJoints;
+        public int liveFragments;
+        public int shatteredPieces;
+        public int shatterSkippedForBudget;
     }
 }
