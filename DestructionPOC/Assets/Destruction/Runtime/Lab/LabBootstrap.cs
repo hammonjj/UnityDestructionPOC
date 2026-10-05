@@ -13,6 +13,8 @@ namespace DestructionLab
         public DestructionSettings settings;
         [Tooltip("Optional authored blockout (a Blender FBX). When set, it is offered as the last scenario.")]
         public GameObject authoredModel;
+        [Tooltip("Optional warehouse blockout (a Blender FBX). When set, it is offered as a scenario after the authored building.")]
+        public GameObject warehouseModel;
         [Tooltip("Scenario loaded on Play (index into the scenario list).")]
         public int startScenario = 4;
 
@@ -25,6 +27,7 @@ namespace DestructionLab
             Physics.simulationMode = SimulationMode.FixedUpdate;
 
             ScenarioLibrary.AuthoredModel = authoredModel;
+            ScenarioLibrary.WarehouseModel = warehouseModel;
             CreateGround();
 
             var worldGo = new GameObject("Destruction World");

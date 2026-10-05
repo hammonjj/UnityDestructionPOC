@@ -75,6 +75,7 @@ namespace DestructionLab.EditorTools
             var boot = go.AddComponent<LabBootstrap>();
             boot.settings = settings;
             boot.authoredModel = ConfigureAuthoredModel(AuthoredModelPath);
+            boot.warehouseModel = ConfigureAuthoredModel(WarehouseModelPath);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -83,13 +84,18 @@ namespace DestructionLab.EditorTools
         }
 
         const string AuthoredModelPath = Root + "/Models/SampleBuilding.fbx";
+        const string WarehouseModelPath = Root + "/Models/Warehouse.fbx";
 
         /// <summary>
         /// Imports an authored blockout with settings the structure importer relies on: real metres, no
         /// rescaling, readable meshes and no generated colliders (the lab makes its own).
         /// </summary>
         [MenuItem("Destruction Lab/Reimport Authored Model")]
-        public static void ReimportAuthoredModel() => ConfigureAuthoredModel(AuthoredModelPath);
+        public static void ReimportAuthoredModel()
+        {
+            ConfigureAuthoredModel(AuthoredModelPath);
+            ConfigureAuthoredModel(WarehouseModelPath);
+        }
 
         static GameObject ConfigureAuthoredModel(string path)
         {

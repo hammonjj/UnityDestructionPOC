@@ -31,6 +31,9 @@ namespace DestructionLab
         /// <summary>Authored model (a Blender blockout FBX) offered as a scenario when the lab supplies one.</summary>
         public static GameObject AuthoredModel;
 
+        /// <summary>Warehouse blockout (Blender FBX), offered as a scenario when the lab supplies one.</summary>
+        public static GameObject WarehouseModel;
+
         /// <summary>Last import report, shown in the scenario's on-screen text.</summary>
         public static string AuthoredReport = "";
 
@@ -49,6 +52,7 @@ namespace DestructionLab
                 Shatter(),
             };
             if (AuthoredModel != null) list.Add(AuthoredBuilding());
+            if (WarehouseModel != null) list.Add(Warehouse());
             return list;
         }
 
@@ -58,9 +62,11 @@ namespace DestructionLab
         /// Reads the authored blockout into structural pieces. Instantiating the model, measuring it and
         /// throwing the instance away keeps the rest of the lab working on plain boxes.
         /// </summary>
-        public static List<PieceDef> ReadAuthoredModel(DestructionSettings settings)
+        public static List<PieceDef> ReadAuthoredModel(DestructionSettings settings) => ReadModel(AuthoredModel, settings);
+
+        static List<PieceDef> ReadModel(GameObject model, DestructionSettings settings)
         {
-            var instance = UnityEngine.Object.Instantiate(AuthoredModel);
+            var instance = UnityEngine.Object.Instantiate(model);
             instance.hideFlags = HideFlags.HideAndDontSave;
             instance.SetActive(false);
             try
@@ -75,7 +81,7 @@ namespace DestructionLab
                 }
                 AuthoredReport = result.pieces.Count == 0
                     ? "import failed: " + (warnings.Count > 0 ? warnings[0] : "no pieces")
-                    : $"{result.pieces.Count} pieces read from {AuthoredModel.name}" +
+                    : $"{result.pieces.Count} pieces read from {model.name}" +
                       (result.Skipped > 0 ? $", {result.Skipped} skipped" : "") +
                       (warnings.Count > 0 ? $" ({warnings.Count} warning(s) in the console)" : "");
                 return result.pieces;
@@ -101,6 +107,23 @@ namespace DestructionLab
             triggerLabel = "Blow out a corner",
             trigger = w => w.Explode(new Vector3(-2.6f, 1.1f, -2.1f), 2.4f, 1.8f, 14000f),
             cameraPivot = new Vector3(0f, 2.6f, 0f), cameraDistance = 19f, cameraYaw = 145f, cameraPitch = 14f,
+            };
+        }
+
+        static Scenario Warehouse()
+        {
+            DestructionSettings settings = null; // handed over by configure, which runs before build
+            return new Scenario
+            {
+            id = "warehouse",
+            title = "9 · Brick warehouse (Blender)",
+            instruction = "Two-storey brick warehouse with a mezzanine over the back half, a roller door and upper windows. Press T to blow out a ground-floor corner, or use any tool on it.",
+            expected = "Brick panels break locally, openings stay gaps, and the mezzanine and roof lose support when a corner pier or centre column goes.",
+            build = () => ReadModel(WarehouseModel, settings),
+            configure = s => settings = s,
+            triggerLabel = "Blow out a corner",
+            trigger = w => w.Explode(new Vector3(-4.6f, 1.2f, -3.1f), 2.6f, 1.8f, 16000f),
+            cameraPivot = new Vector3(0f, 3.2f, 0f), cameraDistance = 22f, cameraYaw = 145f, cameraPitch = 14f,
             };
         }
 
