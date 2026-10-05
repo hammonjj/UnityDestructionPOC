@@ -28,7 +28,7 @@ namespace DestructionLab
 
             ScenarioLibrary.AuthoredModel = authoredModel;
             ScenarioLibrary.WarehouseModel = warehouseModel;
-            CreateGround();
+            CreateGround(settings);
 
             var worldGo = new GameObject("Destruction World");
             worldGo.SetActive(false);
@@ -62,7 +62,7 @@ namespace DestructionLab
             Controller.LoadScenario(startScenario);
         }
 
-        void CreateGround()
+        internal static GameObject CreateGround(DestructionSettings settings)
         {
             var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
             ground.name = "Ground";
@@ -80,6 +80,7 @@ namespace DestructionLab
                 dynamicFriction = 0.8f, staticFriction = 0.8f, bounciness = 0f,
                 bounceCombine = PhysicsMaterialCombine.Minimum,
             };
+            return ground;
         }
     }
 }

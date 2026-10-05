@@ -84,7 +84,8 @@ namespace DestructionLab.EditorTools
         }
 
         const string AuthoredModelPath = Root + "/Models/SampleBuilding.fbx";
-        const string WarehouseModelPath = Root + "/Models/Warehouse.fbx";
+        internal const string WarehouseModelPath = Root + "/Models/Warehouse.fbx";
+        internal const string SettingsAssetPath = SettingsPath;
 
         /// <summary>
         /// Imports an authored blockout with settings the structure importer relies on: real metres, no
@@ -97,7 +98,7 @@ namespace DestructionLab.EditorTools
             ConfigureAuthoredModel(WarehouseModelPath);
         }
 
-        static GameObject ConfigureAuthoredModel(string path)
+        internal static GameObject ConfigureAuthoredModel(string path)
         {
             var importer = AssetImporter.GetAtPath(path) as ModelImporter;
             if (importer == null)

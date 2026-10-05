@@ -3,6 +3,7 @@
     "rootNamespace": "DestructionLab.Tests",
     "references": [
         "DestructionLab.Runtime",
+        "Unity.InputSystem",
         "UnityEngine.TestRunner"
     ],
     "includePlatforms": [],

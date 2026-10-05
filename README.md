@@ -41,6 +41,24 @@ Nothing else is needed. All geometry is procedural boxes, with no art, packages 
 
 The on-screen panels give the same information. The scenario panel is on the left, and tools, playback and tuning are on the right. Help is bottom-left. Stats, the selected connection and the break log are bottom-right.
 
+## Crane test scene
+
+`Assets/Scenes/CraneTest.unity` (menu **Destruction Lab → Build Crane Test Scene** rebuilds it) puts the wrecking crane and the brick warehouse on an open plane, with a first-person player. Walk to the crane's cab steps (left side of the machine) and press **E** / **X** to climb in. The crane is a prop, not a structure: its ball is a free 25 t rigid body on a rope limit, and it damages the warehouse through the normal contact path. Impacts need roughly 6 m/s at this ball mass to break brick, so swing it rather than nudge it.
+
+| Action | Keyboard + mouse | Gamepad |
+|---|---|---|
+| Move / look / run / jump | WASD / mouse / Shift / Space | Left stick / right stick / L-stick click / A |
+| Enter or leave the cab | E | X (enter), X or B (leave) |
+| Slew the upper carriage | A / D | Left stick left / right |
+| Raise / lower the boom | W / S | Left stick up / down |
+| Pay out (ball down) / reel in (ball up) | F / R | Right trigger / left trigger |
+| Drive / turn the tracks | Arrow keys | D-pad |
+| Look around the cab | Mouse | Right stick |
+| Rebuild the warehouse and reset the crane | Backspace | Start |
+| Release / recapture the mouse | Esc / click | |
+
+Driving does not collide with the warehouse, so the crane can be driven through it. The code is in `Runtime/Crane/`.
+
 ## Scenarios
 
 | # | What you do | What you should see |
