@@ -79,7 +79,7 @@ When a Structural connection fails by **overload** or a non-violent **impact**, 
   - Arrest by contact lowers the joint load, so damage stops and the piece stays attached. Nothing here is a timer.
 - **Budget:** each cluster keeps at most 2 residual hinges, and only parallel ones. Perpendicular hinges would lock the piece. Excess hinges are severed with the reason "residual budget".
 - **Mass ratio:** above 10:1 between joined clusters, the joint's mass scale brings the effective ratio down to 10.
-- **Measured in the spike tests:** joint force matched the hanging weight to within 1.2%. Hinge moment about the anchor matched the analytic gravity moment to within 25%; Unity reports `currentTorque` about the anchor, as verified. Recreating a joint mid-hang preserves the absolute sag range. Unity's angular-X sign relative to our twist measure is −1, as verified.
+- **Measured in the spike tests:** joint force matched the hanging weight to within 0.1%. Hinge moment about the anchor matched the analytic gravity moment to within 3%; Unity reports `currentTorque` about the anchor, as verified. Recreating a joint mid-hang preserves the absolute sag range. Unity's angular-X sign relative to our twist measure is −1, as verified.
 
 ## Damage sources and units
 

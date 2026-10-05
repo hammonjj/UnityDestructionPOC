@@ -39,7 +39,7 @@ namespace DestructionLab.Tests
             Vector3 hingeOnWall = rec.joint.connectedAnchor; // world space (connected body is static)
             float angle0 = FloorAngle(floor);
 
-            f.Seconds(10f);
+            f.Seconds(60f); // plan criterion: no drift over 60 s
             float angle1 = FloorAngle(floor);
             float drift = Vector3.Distance(rec.lastHingeWorld, hingeOnWall);
             float weight = rb.mass * LoadModel.Gravity;

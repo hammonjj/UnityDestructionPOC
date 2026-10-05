@@ -103,8 +103,8 @@ Measured on an Apple M5 Pro (16 cores, 24 GB) in the editor, Play mode, Game vie
 | Compile | 0 errors, 0 warnings from project code |
 | EditMode / PlayMode tests | 16/16 and 14/14 passing |
 | Console during a full scenario sweep | 0 errors, 0 warnings |
-| Spike S1 hang | Settles at the 80° limit. Drift < 1 cm over 10 s, joint force 95.3 kN against 94.2 kN weight, residual q 0.98 with the test's 1.6× residual strength |
-| Spike S2 arrest | Floor rests at 22.7° on the low wall. Residual damage changed by 0.000 over 20 s. |
+| Spike S1 hang | Settles at 77.6° and holds for 60 s. Angle change 0.0°, \|ω\| < 0.0001 rad/s, anchor drift < 1 cm. Joint force 94.3 kN against 94.2 kN weight. Hinge moment 53.5 kN·m against 52.0 analytic. Residual q 0.70, using the test's 1.6× residual strength. |
+| Spike S2 arrest | Floor rests at 22.7° on the low wall. Residual damage changed by 0.000 over 20 s, and residual q is 0.68. |
 | Spike S3 tear | Tears more than 3 s after the hinge forms, by residual-joint failure; the test enforces > 3 s. In live Play mode the hinge formed at 2.60 s and tore at 5.80 s. |
 | Reset ×10 | Piece, connection, joint, body and log counts back to initial values each time |
 | Worst observed collapse | Two large explosions in the 52-piece frame: 133 transitions, peak 43 bodies and 9 joints. About 700 FPS, physics ≤ 0.30 ms per step, structural ≤ 2.3 ms per step. Everything asleep after about 10 s. |
