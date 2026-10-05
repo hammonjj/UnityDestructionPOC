@@ -1,0 +1,105 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f22d3b10410ac43abb661a15360b959d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DestructionLab.Runtime::DestructionLab.DestructionSettings
+  structure:
+    safetyFactor: 2.5
+    designLiveLoad: 5000
+    groundCapacityFactor: 8
+    strengthMultiplier: 1
+    damageRate: 1.5
+    damageExponent: 2
+    instantFailRatio: 2
+    bearingWeight: 1
+    hangingWeight: 0.6
+    lateralWeight: 0.35
+    contactLoads: 1
+    contactTolerance: 0.005
+    minOverlap: 0.05
+    colliderInset: 0.01
+    debrisScale: 0.96
+  residual:
+    enabled: 1
+    strengthMultiplier: 1
+    maxJointsPerCluster: 2
+    initialSagDegrees: 1
+    maxSagDegrees: 80
+    sagRateDegreesPerSecond: 20
+    damageRate: 1.5
+    damageExponent: 2
+    forceSmoothing: 0.12
+    warmupSteps: 5
+    catastrophicRatio: 6
+    offAxisMomentFactor: 3
+    swingLimitDegrees: 4
+    damperPerTonne: 600
+    maxMassRatio: 10
+  physics:
+    solverIterations: 12
+    solverVelocityIterations: 2
+    jointedSolverIterations: 16
+    jointedSolverVelocityIterations: 4
+    maxDepenetrationVelocity: 3
+    maxAngularVelocity: 20
+    killPlaneY: -40
+    interpolate: 1
+  impact:
+    enabled: 1
+    minRelativeSpeed: 2
+    damageScale: 1
+    violentEnergyFactor: 4
+    pairCooldown: 0.2
+    connectionCooldown: 0.25
+    maxFailuresPerStep: 8
+  tools:
+    clickDamage: 0.35
+    explosionRadius: 2.5
+    explosionDamage: 1.5
+    explosionInnerFraction: 0.35
+    explosionImpulse: 12000
+    dropBlockMass: 2000
+    dropBlockHeight: 4
+  materials:
+  - name: Concrete
+    density: 2400
+    tensileStrength: 350000
+    compressiveStrength: 8000000
+    shearStrength: 600000
+    residualForcePerMeter: 21000
+    residualYieldMomentPerMeter: 6000
+    impactToughness: 40000
+    color: {r: 0.72, g: 0.72, b: 0.7, a: 1}
+    friction: 0.8
+  - name: Wood
+    density: 600
+    tensileStrength: 500000
+    compressiveStrength: 4000000
+    shearStrength: 400000
+    residualForcePerMeter: 9000
+    residualYieldMomentPerMeter: 2500
+    impactToughness: 15000
+    color: {r: 0.62, g: 0.45, b: 0.28, a: 1}
+    friction: 0.6
+  - name: Brick
+    density: 1900
+    tensileStrength: 200000
+    compressiveStrength: 6000000
+    shearStrength: 350000
+    residualForcePerMeter: 6000
+    residualYieldMomentPerMeter: 1500
+    impactToughness: 20000
+    color: {r: 0.66, g: 0.36, b: 0.28, a: 1}
+    friction: 0.8
+  pieceMaterial: {fileID: 2100000, guid: da2303b7401824753b67806bccc01164, type: 2}
+  groundMaterial: {fileID: 2100000, guid: 68dcde4b96475431397fb0f1fcafe101, type: 2}
+  overlayMaterial: {fileID: 2100000, guid: 5ee270a44779e479c8ec1fcdaa77e9a5, type: 2}
