@@ -162,6 +162,7 @@ namespace DestructionLab
             StepIndex = 0;
             stats = default;
             removedHolder = null;
+            ClearFragmentMeshes();
             nextClusterId = 0;
             if (root != null)
             {
@@ -512,7 +513,7 @@ namespace DestructionLab
         {
             if (k == null || k.pieces.Count == 0) return;
             var b = new Bounds(pieces[k.pieces[0]].transform.position, Vector3.zero);
-            foreach (int i in k.pieces) b.Encapsulate(pieces[i].box.bounds);
+            foreach (int i in k.pieces) b.Encapsulate(pieces[i].shape.bounds);
             b.Expand(0.4f);
             var hits = Physics.OverlapBox(b.center, b.extents, Quaternion.identity);
             foreach (var h in hits)
@@ -547,32 +548,56 @@ namespace DestructionLab
         void CreatePieceObject(int i, RigidCluster owner)
         {
             var d = Graph.pieces[i];
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = d.name;
-            go.transform.SetParent(owner.transform, false);
-            go.transform.SetPositionAndRotation(d.center, d.rotation);
-            go.transform.localScale = d.size;
+            GameObject go;
+            Collider shape;
+            MeshRenderer mr;
 
-            var box = go.GetComponent<BoxCollider>();
-            float inset = Settings.structure.colliderInset;
-            box.size = new Vector3(
-                Mathf.Max(0.05f, 1f - 2f * inset / Mathf.Max(0.01f, d.size.x)),
-                Mathf.Max(0.05f, 1f - 2f * inset / Mathf.Max(0.01f, d.size.y)),
-                Mathf.Max(0.05f, 1f - 2f * inset / Mathf.Max(0.01f, d.size.z)));
-            box.providesContacts = true;
-            box.sharedMaterial = PhysicsMaterialFor(d.material);
+            if (d.mesh != null)
+            {
+                // Irregular fragment: its own convex mesh, already centred on its centre of mass.
+                go = new GameObject(d.name, typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider));
+                go.transform.SetParent(owner.transform, false);
+                go.transform.SetPositionAndRotation(d.center, d.rotation);
+                go.GetComponent<MeshFilter>().sharedMesh = d.mesh;
+                var mc = go.GetComponent<MeshCollider>();
+                // The mesh is already a clean convex hull, so skip the cleaning and welding passes.
+                mc.cookingOptions = MeshColliderCookingOptions.CookForFasterSimulation |
+                                    MeshColliderCookingOptions.UseFastMidphase;
+                mc.convex = true;
+                mc.sharedMesh = d.mesh;
+                shape = mc;
+                mr = go.GetComponent<MeshRenderer>();
+            }
+            else
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.name = d.name;
+                go.transform.SetParent(owner.transform, false);
+                go.transform.SetPositionAndRotation(d.center, d.rotation);
+                go.transform.localScale = d.size;
 
-            var mr = go.GetComponent<MeshRenderer>();
+                var box = go.GetComponent<BoxCollider>();
+                float inset = Settings.structure.colliderInset;
+                box.size = new Vector3(
+                    Mathf.Max(0.05f, 1f - 2f * inset / Mathf.Max(0.01f, d.size.x)),
+                    Mathf.Max(0.05f, 1f - 2f * inset / Mathf.Max(0.01f, d.size.y)),
+                    Mathf.Max(0.05f, 1f - 2f * inset / Mathf.Max(0.01f, d.size.z)));
+                shape = box;
+                mr = go.GetComponent<MeshRenderer>();
+            }
+
+            shape.providesContacts = true;
+            shape.sharedMaterial = PhysicsMaterialFor(d.material);
             mr.sharedMaterial = Settings.pieceMaterial;
 
             var p = go.AddComponent<Piece>();
             p.index = i;
             p.cluster = owner;
-            p.box = box;
+            p.shape = shape;
             p.meshRenderer = mr;
             pieces.Add(p);
             owner.pieces.Add(i);
-            colliderToPiece[box] = i;
+            colliderToPiece[shape] = i;
             SetPieceColor(i, Settings.Material(d.material).color);
         }
 

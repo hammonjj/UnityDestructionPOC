@@ -104,6 +104,63 @@ namespace DestructionLab.Tests
         }
 
         [UnityTest]
+        public IEnumerator Fragments_AreIrregularConvexMeshes()
+        {
+            f = WorldFixture.Create("shatter");
+            int target = f.Piece("Panel 01");
+            float mass = f.world.Graph.mass[target];
+            f.world.Explode(new Vector3(0f, 1.6f, -0.6f), 2.6f, 1.6f, 0f);
+            f.Steps(1);
+            var frags = Fragments("Panel 01");
+            Assert.That(frags.Count, Is.GreaterThanOrEqualTo(3));
+
+            foreach (var p in frags)
+            {
+                var mc = p.shape as MeshCollider;
+                Assert.IsNotNull(mc, $"{p.name} uses a MeshCollider");
+                Assert.IsTrue(mc.convex);
+                Assert.That(mc.sharedMesh.vertexCount, Is.GreaterThanOrEqualTo(12));
+            }
+
+            var masses = frags.Select(p => f.world.Graph.mass[p.index]).OrderBy(m => m).ToList();
+            Debug.Log($"[Shapes] {frags.Count} fragments, mass {masses.First():0} .. {masses.Last():0} kg, total {masses.Sum():0} vs piece {mass:0}");
+            Assert.That(masses.Sum(), Is.EqualTo(mass).Within(0.02f * mass), "mass is conserved");
+            Assert.That(masses.Last(), Is.GreaterThan(1.5f * masses.First()), "fragments differ in size");
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator BoxFragmentShape_StillWorks()
+        {
+            f = WorldFixture.Create("shatter");
+            f.world.Settings.fragments.shape = FragmentShape.Boxes;
+            int target = f.Piece("Panel 01");
+            float mass = f.world.Graph.mass[target];
+            f.world.Explode(new Vector3(0f, 1.6f, -0.6f), 2.6f, 1.6f, 0f);
+            f.Steps(1);
+            var frags = Fragments("Panel 01");
+            Assert.That(frags.Count, Is.GreaterThanOrEqualTo(2));
+            Assert.IsTrue(frags.All(p => p.shape is BoxCollider));
+            Assert.That(frags.Sum(p => f.world.Graph.mass[p.index]), Is.EqualTo(mass).Within(0.01f * mass));
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator ShattersPerStep_AreQueued_NotDropped()
+        {
+            f = WorldFixture.Create("shatter");
+            f.world.Settings.fragments.maxShattersPerStep = 1;
+            f.Trigger();
+            f.Steps(1);
+            Assert.AreEqual(1, f.world.stats.shatteredPieces, "only one piece shatters in a step");
+            Assert.That(f.world.stats.pendingShatters, Is.GreaterThanOrEqualTo(1), "the rest are queued");
+            f.Steps(2);
+            Assert.AreEqual(2, f.world.stats.shatteredPieces, "the queue drains on later steps");
+            Assert.AreEqual(0, f.world.stats.pendingShatters);
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator OverloadFailures_NeverShatter()
         {
             f = WorldFixture.Create("hanging");

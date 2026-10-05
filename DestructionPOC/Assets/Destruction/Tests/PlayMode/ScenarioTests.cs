@@ -115,7 +115,7 @@ namespace DestructionLab.Tests
             Assert.That(woke, Is.GreaterThan(1), "impact should wake pile pieces");
             f.Seconds(15f);
             var block = f.world.pieces.Last();
-            float bottom = block.box.bounds.min.y;
+            float bottom = block.shape.bounds.min.y;
             Debug.Log($"[Rubble] block bottom {bottom:0.00} m, sleeping {f.world.stats.sleepingBodies}/{f.world.stats.dynamicBodies + f.world.stats.sleepingBodies}");
             Assert.That(bottom, Is.GreaterThan(0.2f), "block rests on the pile, not the ground");
             Assert.That(f.world.stats.sleepingBodies, Is.GreaterThanOrEqualTo((f.world.stats.dynamicBodies + f.world.stats.sleepingBodies) * 0.8f));

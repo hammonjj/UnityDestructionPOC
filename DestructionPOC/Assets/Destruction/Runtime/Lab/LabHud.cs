@@ -168,6 +168,7 @@ namespace DestructionLab
                    $"sim time {since:0.0} s   pieces {st.pieces} (static {st.staticPieces})   bodies active {st.dynamicBodies} / sleeping {st.sleepingBodies}   joints {st.activeJoints}\n" +
                    $"connections structural {st.structural} · residual {st.residual} · severed {st.severed}   failures {world.log.Total} (pending {st.pendingFailures})   contacts {st.contactsThisStep} impacts {st.impactsThisStep}\n" +
                    $"shattered pieces {st.shatteredPieces} → live fragments {st.liveFragments} / {world.Settings.fragments.maxLiveFragments}" +
+                   (st.pendingShatters > 0 ? $"   queued {st.pendingShatters}" : "") +
                    (st.shatterSkippedForBudget > 0 ? $"   (over budget, detached whole: {st.shatterSkippedForBudget})" : "") +
                    (world.Paused ? "   <color=#ffd27f>PAUSED</color>" : "");
         }

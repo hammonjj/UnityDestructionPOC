@@ -9,7 +9,8 @@ namespace DestructionLab
     {
         public int index;
         public RigidCluster cluster;
-        public BoxCollider box;
+        /// <summary>BoxCollider for authored pieces, convex MeshCollider for irregular fragments.</summary>
+        public Collider shape;
         public MeshRenderer meshRenderer;
         public bool removed;
         public bool shrunk;
@@ -111,5 +112,12 @@ namespace DestructionLab
         public int liveFragments;
         public int shatteredPieces;
         public int shatterSkippedForBudget;
+        public int pendingShatters;
+        public float shatterMs;
+        public float maxShatterMs;
+        public float shapeMs;
+        public float spawnMs;
+        public float peakShapeMs;
+        public float peakSpawnMs;
     }
 }

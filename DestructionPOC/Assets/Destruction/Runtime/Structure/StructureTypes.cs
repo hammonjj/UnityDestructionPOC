@@ -18,6 +18,10 @@ namespace DestructionLab
         public bool loose;
         public Quaternion rotation;
         public Vector3 initialVelocity;
+        /// <summary>Irregular fragments carry their own convex mesh, centred on their centre of mass.</summary>
+        public Mesh mesh;
+        /// <summary>Volume of <see cref="mesh"/>, m³. Boxes derive it from <see cref="size"/> instead.</summary>
+        public float meshVolume;
 
         public static PieceDef Box(string name, Vector3 center, Vector3 size, PieceKind kind, int material = 0)
         {
@@ -28,7 +32,7 @@ namespace DestructionLab
             };
         }
 
-        public float Volume => size.x * size.y * size.z;
+        public float Volume => mesh != null ? meshVolume : size.x * size.y * size.z;
     }
 
     public enum ConnectionState { Structural, Residual, Severed }

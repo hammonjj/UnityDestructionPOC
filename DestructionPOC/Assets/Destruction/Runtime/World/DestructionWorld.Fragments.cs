@@ -38,8 +38,8 @@ namespace DestructionLab
             for (int i = 0; i < pieces.Count; i++)
             {
                 var p = pieces[i];
-                if (p.removed || !p.box.enabled || !p.gameObject.activeInHierarchy) continue;
-                Vector3 closest = p.box.ClosestPoint(point);
+                if (p.removed || !p.shape.enabled || !p.gameObject.activeInHierarchy) continue;
+                Vector3 closest = p.shape.ClosestPoint(point);
                 if ((closest - point).sqrMagnitude <= coreRadius * coreRadius) RequestShatter(i, FailureReason.Explosion);
             }
         }
@@ -51,15 +51,27 @@ namespace DestructionLab
         /// </summary>
         void ExecuteShatters()
         {
+            stats.shatterMs = stats.shapeMs = stats.spawnMs = 0f;
             if (shatterOrder.Count == 0) return;
             var f = Settings.fragments;
             bool topologyChanged = false;
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var part = new System.Diagnostics.Stopwatch();
+
+            // Building fragment shapes is the most expensive thing in the step, so only a few pieces shatter
+            // per step. The rest keep their place in the queue and shatter next step; none are dropped.
+            int budget = Mathf.Max(1, f.maxShattersPerStep);
+            int done = 0;
+            var processed = new List<int>();
 
             foreach (int i in shatterOrder)
             {
+                if (done >= budget) break;
                 var reason = shatterRequests[i];
+                processed.Add(i);
                 var p = pieces[i];
                 if (p.removed) continue;
+                done++;
 
                 var t = p.transform;
                 Vector3 size = t.localScale; // includes any debris shrink; cluster parents are unit scale
@@ -102,13 +114,16 @@ namespace DestructionLab
 
                 RemovePieceFromWorld(i);
 
-                var boxes = Fragmenter.Split(size, count, f.minSize, Fragmenter.SeedFor(f.seed, i));
-                for (int k = 0; k < boxes.Count; k++)
+                part.Restart();
+                var defs = BuildFragments(size, count, Fragmenter.SeedFor(f.seed, i), pos, rot, material, baseName);
+                part.Stop();
+                stats.shapeMs += (float)part.Elapsed.TotalMilliseconds;
+
+                part.Restart();
+                for (int k = 0; k < defs.Count; k++)
                 {
-                    var b = boxes[k];
-                    Vector3 center = pos + rot * b.center;
-                    var def = PieceDef.Box($"{baseName} frag {k}", center, b.size, PieceKind.Rubble, material);
-                    def.rotation = rot;
+                    var def = defs[k];
+                    Vector3 center = def.center;
                     int fi = Graph.AddLoosePiece(def, Settings);
                     CreatePieceObject(fi, StaticCluster);
                     StaticCluster.pieces.Remove(fi);
@@ -126,22 +141,88 @@ namespace DestructionLab
                     }
                     stats.liveFragments++;
                 }
+                part.Stop();
+                stats.spawnMs += (float)part.Elapsed.TotalMilliseconds;
 
                 stats.shatteredPieces++;
                 var e = new BreakEvent
                 {
                     time = SimTime, connection = -1, pieceA = baseName, pieceB = "",
                     from = ConnectionState.Structural, to = ConnectionState.Severed,
-                    reason = reason, fragments = boxes.Count,
+                    reason = reason, fragments = defs.Count,
                 };
                 log.Add(e);
                 RaiseBreak(e);
                 topologyChanged = true;
             }
 
-            shatterRequests.Clear();
-            shatterOrder.Clear();
+            foreach (int i in processed)
+            {
+                shatterRequests.Remove(i);
+                shatterOrder.Remove(i);
+            }
+            stats.pendingShatters = shatterOrder.Count;
+            stats.shatterMs = (float)clock.Elapsed.TotalMilliseconds;
+            if (stats.shatterMs > stats.maxShatterMs)
+            {
+                stats.maxShatterMs = stats.shatterMs;
+                stats.peakShapeMs = stats.shapeMs;
+                stats.peakSpawnMs = stats.spawnMs;
+            }
             if (topologyChanged) Recluster(null);
+        }
+
+        readonly List<Mesh> fragmentMeshes = new List<Mesh>();
+
+        /// <summary>
+        /// Fragment shapes for one shattered piece, already in world space. Convex Voronoi cells by default
+        /// (irregular, exact tiling); axis-aligned box splits as a fallback when cells degenerate.
+        /// </summary>
+        List<PieceDef> BuildFragments(Vector3 size, int count, int seed, Vector3 pos, Quaternion rot, int material, string baseName)
+        {
+            var defs = new List<PieceDef>(count);
+            var f = Settings.fragments;
+
+            if (f.shape == FragmentShape.ConvexCells)
+            {
+                var cells = VoronoiFracture.Cells(size, count, seed, f.minSize * 0.5f);
+                float wanted = size.x * size.y * size.z;
+                float got = 0f;
+                foreach (var c in cells) got += c.volume;
+                // Degenerate site layouts can lose volume; fall back rather than lose mass.
+                if (cells.Count >= 2 && got >= wanted * 0.9f)
+                {
+                    for (int k = 0; k < cells.Count; k++)
+                    {
+                        var cell = cells[k];
+                        var mesh = FragmentMesh.Build(cell, $"{baseName} frag {k}");
+                        fragmentMeshes.Add(mesh);
+                        var def = PieceDef.Box($"{baseName} frag {k}", pos + rot * cell.centroid, Vector3.one, PieceKind.Rubble, material);
+                        def.rotation = rot;
+                        def.mesh = mesh;
+                        def.meshVolume = cell.volume;
+                        defs.Add(def);
+                    }
+                    return defs;
+                }
+            }
+
+            var boxes = Fragmenter.Split(size, count, f.minSize, seed);
+            for (int k = 0; k < boxes.Count; k++)
+            {
+                var b = boxes[k];
+                var def = PieceDef.Box($"{baseName} frag {k}", pos + rot * b.center, b.size, PieceKind.Rubble, material);
+                def.rotation = rot;
+                defs.Add(def);
+            }
+            return defs;
+        }
+
+        void ClearFragmentMeshes()
+        {
+            foreach (var m in fragmentMeshes)
+                if (m != null) DestroyImmediate(m);
+            fragmentMeshes.Clear();
         }
 
         /// <summary>Takes a piece out of the simulation (shattered or demolished).</summary>
@@ -171,7 +252,7 @@ namespace DestructionLab
         {
             var p = pieces[i];
             p.removed = true;
-            colliderToPiece.Remove(p.box);
+            colliderToPiece.Remove(p.shape);
             if (removedHolder == null)
             {
                 removedHolder = new GameObject("Removed pieces").transform;

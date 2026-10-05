@@ -143,11 +143,21 @@ namespace DestructionLab
         public float dropBlockHeight = 4f;
     }
 
+    public enum FragmentShape
+    {
+        /// <summary>Irregular convex Voronoi cells: varied shapes and sizes, exact tiling.</summary>
+        ConvexCells,
+        /// <summary>Axis-aligned box splits: cheaper colliders, uniform look.</summary>
+        Boxes,
+    }
+
     /// <summary>Fragmentation: violent failures shatter pieces into rubble; overload failures never do.</summary>
     [Serializable]
     public class FragmentSettings
     {
         public bool enabled = true;
+        [Tooltip("Shape of the chunks a shattered piece breaks into.")]
+        public FragmentShape shape = FragmentShape.ConvexCells;
         [Tooltip("Approximate fragment edge length, m.")]
         [Range(0.3f, 3f)] public float targetSize = 0.8f;
         [Range(2, 32)] public int minPerPiece = 3;
@@ -156,6 +166,8 @@ namespace DestructionLab
         public float minSize = 0.15f;
         [Tooltip("Live fragment budget. Over budget, a piece that should shatter detaches whole instead.")]
         public int maxLiveFragments = 300;
+        [Tooltip("Pieces shattered per fixed step. The rest wait their turn; none are dropped. Spreads the cost of building fragment shapes.")]
+        [Range(1, 32)] public int maxShattersPerStep = 2;
         [Tooltip("Accumulated direct (click) damage on a piece that shatters it.")]
         public float directShatterDamage = 1f;
         public bool shatterOnExplosionCore = true;
