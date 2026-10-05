@@ -54,6 +54,7 @@ The on-screen panels give the same information. The scenario panel is on the lef
 | 5 · Secondary collapse | **T** cuts the top balcony | It falls onto the next balcony, whose joint fails by impact and hangs with the debris. Further failures from impact or overload stay bounded, and the log goes quiet. |
 | 6 · Persistent rubble | Wait for sleep (F2 → sleep tint), then **T** | A 2 t block lands on the pile. The pieces it touches wake, the pile supports it, and everything sleeps again. |
 | 7 · Shatter into rubble | **T** sets off a charge against the middle of a panel wall | Panels inside the blast core shatter into chunks that fly, fall and pile up. Panels further out lose their joints and drop or hinge whole. The rubble sleeps and stays collidable. |
+| 8 · Authored building (Blender) | **T** blows out a ground-floor corner | A cottage modelled in Blender, not in code. It behaves like the procedural scenarios: the corner pier shatters, the upper storey loses support, and panels hinge where joints are overloaded. |
 
 ### Shattering vs hinging
 
@@ -76,6 +77,35 @@ The frame building in scenarios 1–2 is also the free-play sandbox. Try the Exp
 - **Inspect** a piece to see its nearest connection. Capacities and loads are shown in kN and kN·m. q is a dimensionless load ÷ capacity ratio with its normal, shear and bending components. The panel also shows damage D. For residual hinges it shows joint force against capacity, hinge moment against yield, sag angle, residual q and residual damage.
 - **Break log:** every transition is listed with its reason: direct damage, direct damage (explosion), structural overload, residual-joint failure, impact, or residual budget. Each entry also shows q and D at the time.
 - **Stats:** FPS, physics step time (Profiler `Physics.Simulate`, recent maximum), structural work time per fixed step, pieces, active and sleeping bodies, joints, connection counts, failures, and pending failures.
+
+## Building your own structures in Blender
+
+Scenario 8 is imported from `Tools/blender/SampleBuilding.blend`, exported to
+`Assets/Destruction/Models/SampleBuilding.fbx`. You can model your own the same way.
+
+**The convention**
+
+1. **One mesh object per structural piece.** The piece is the unit that breaks off, hinges and shatters, so split walls into panels rather than modelling one wall object.
+2. **Every object is an unrotated box.** Rotations in multiples of 90° are fine. Apply scale and rotation before exporting. Anything genuinely rotated or non-box is skipped with a warning naming the object.
+3. **Metres, and pieces touch rather than overlap.** The importer finds connections from shared faces, so interpenetration is reported as a warning and leaves the structure misread.
+4. **Anything resting on y = 0 is anchored.** The model is dropped so its lowest point sits on the ground.
+5. **Material comes from a name suffix:** `__concrete` (the default), `__wood`, `__brick`. Add `__noshatter` to a piece that may break off but should never fragment.
+6. **The name prefix hints at the role,** which only affects the design live load: `Floor`/`Slab`, `Pier`/`Column`/`Post`, `Wall`/`Panel`. Otherwise the shape decides.
+
+So `Wall_U_N0__brick` is an upper-storey north wall panel in brick.
+
+**Export from Blender:** FBX, selected objects, scale 1, `-Z` forward and `Y` up, no space-transform baking. The sample script does this for you:
+
+```sh
+/Applications/Blender.app/Contents/MacOS/Blender --background \
+    --python Tools/blender/build_sample_building.py
+```
+
+It also fails loudly if any two pieces interpenetrate, which is the easiest mistake to make.
+
+**In Unity:** drop the FBX into `Assets/Destruction/Models/`, run **Destruction Lab → Reimport Authored Model** to apply the import settings the lab needs (file scale, readable meshes, no generated colliders), then assign it to the `Destruction Lab` object's **Authored Model** field. It appears as the last scenario. The scenario panel reports how many pieces were read and how many were skipped; warnings go to the console.
+
+The importer reads world-space bounds, so it does not care how the exporter mapped Blender's Z-up axes onto Unity's Y-up ones.
 
 ## Tuning
 
@@ -105,7 +135,7 @@ The HUD has sliders for the shatter impact threshold and the fragment size, plus
 
 ## Tests
 
-Pure logic runs in EditMode, 33 tests: adjacency, load model including the cantilever disproving experiment, calibration, damage law, impact filter, hinge math, the box split pattern, and the convex-cell fracture (exact tiling, convexity, irregularity, determinism, outward winding). Physics behaviour runs in PlayMode, 25 tests. These step the simulation deterministically with `SimulationMode.Script` and cover:
+Pure logic runs in EditMode, 33 tests: adjacency, load model including the cantilever disproving experiment, calibration, damage law, impact filter, hinge math, the box split pattern, and the convex-cell fracture (exact tiling, convexity, irregularity, determinism, outward winding), and the model importer (bounds, ground drop, rotated and sliver rejection, overlap warnings, name suffixes). Physics behaviour runs in PlayMode, 28 tests. These step the simulation deterministically with `SimulationMode.Script` and cover:
 
 - spike S1–S3 (hang, arrest, tear), joint recreation, and split pose and velocity continuity;
 - explosion impulse applied once, reset ×10, and every scenario;
@@ -126,8 +156,9 @@ Measured on an Apple M5 Pro (16 cores, 24 GB) in the editor, Play mode, Game vie
 | Check | Result |
 |---|---|
 | Compile | 0 errors, 0 warnings from project code |
-| EditMode / PlayMode tests | 33/33 and 25/25 passing |
-| Console during a full scenario sweep | 0 errors, 0 warnings |
+| EditMode / PlayMode tests | 44/44 and 28/28 passing |
+| Console during a full scenario sweep | 0 errors, 0 warnings from project code |
+| Authored Blender model (2026-10-05) | 51 pieces read with no warnings, 141 connections, 13 ground anchors. Stable with 0 bodies and 0 failures. A corner blast shattered the pier, left residual hinges on the storey above, and settled with 26 sleeping bodies. |
 | Spike S1 hang | Settles at 77.6° and holds for 60 s. Angle change 0.0°, \|ω\| < 0.0001 rad/s, anchor drift < 1 cm. Joint force 94.3 kN against 94.2 kN weight. Hinge moment 53.5 kN·m against 52.0 analytic. Residual q 0.70, using the test's 1.6× residual strength. |
 | Spike S2 arrest | Floor rests at 22.7° on the low wall. Residual damage changed by 0.000 over 20 s, and residual q is 0.68. |
 | Spike S3 tear | Tears more than 3 s after the hinge forms, by residual-joint failure; the test enforces > 3 s. In live Play mode the hinge formed at 2.60 s and tore at 5.80 s. |
@@ -142,7 +173,7 @@ Provisional target: ≥ 60 FPS with ≤ 150 active bodies and ≤ 40 joints. The
 ## Limitations
 
 - The structural model is a quasi-static load propagation, not a stress solver. It is exact for a single piece on its supports. It ignores load sharing between pieces at the same graph level. It does not transmit bending moment through joints, so multi-piece cantilevers are underestimated. Calibration against the intact structure absorbs the remaining artefacts.
-- Structural pieces are axis-aligned boxes. Their fragments are irregular convex chunks, but they are still convex, so you get wedges and slabs rather than concave or splintered shapes. There is no runtime mesh cutting, true deformation or multiplayer. Blender-authored structures are tracked in epic [#15](https://github.com/hammonjj/UnityDestructionPOC/issues/15).
+- Structural pieces are axis-aligned boxes, whether written in code or modelled in Blender. Their fragments are irregular convex chunks, but still convex, so you get wedges and slabs rather than concave or splintered shapes. Arbitrary rotated or organic meshes need the work in [#20](https://github.com/hammonjj/UnityDestructionPOC/issues/20). There is no runtime mesh cutting, true deformation or multiplayer.
 - Residual hinges are PhysX `ConfigurableJoint`s. Clusters joined by a residual joint with a mass ratio above 10:1 are mass-scaled. At most two parallel hinges per cluster survive; others are severed and logged as "residual budget".
 - Fully detached debris shrinks 4% so it cannot wedge in the exact-fit hole it came from.
 - PhysX is not deterministic across platforms. Scenario construction, including the seeded rubble pile, is repeatable.

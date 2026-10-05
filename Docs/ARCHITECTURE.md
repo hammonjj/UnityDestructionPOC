@@ -15,6 +15,19 @@ This note explains how the Destruction Lab is built, which approximations it mak
 | Accumulated damage law `D += h·k·max(0,q−1)^p` | The research's own suggestion, not Embark's | Yes |
 | Contact as both damage source and new support | Research recommendation | Yes, for both impact damage and resting support loads |
 
+## Where pieces come from
+
+Two sources, one representation. Code-defined scenarios emit `PieceDef`s directly. Authored models go through `StructureImporter`, which reads every mesh renderer's **world-space bounds** and emits the same `PieceDef`s. Reading world bounds rather than transforms means the importer is indifferent to how the exporter mapped Blender's Z-up, -Y-forward axes onto Unity's Y-up, +Z-forward ones, which is the usual source of FBX grief.
+
+Validation is deliberately loud rather than silent:
+
+- A rotated or non-box mesh has a world bounding box noticeably larger than the mesh itself, so comparing the two volumes catches both cases. Over 2% larger is skipped with a warning naming the object. Rotations in multiples of 90° pass, since the box stays axis-aligned.
+- Pieces thinner than 2 cm are skipped; they would make useless connections.
+- Interpenetrating pieces are reported, because the connection search expects pieces to touch face to face.
+- A model with nothing usable is an error, not an empty scenario.
+
+Material, the no-shatter flag and the piece kind come from name suffixes and prefixes, so the convention needs no custom properties and survives any exporter. Everything downstream — the graph, load model, clusters, residual joints, fragmentation — is unchanged and cannot tell the two sources apart.
+
 ## Representations
 
 ```
