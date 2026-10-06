@@ -60,6 +60,22 @@ namespace DestructionLab
         readonly Dictionary<ContactLoadKey, ContactLoad> contactLoads = new Dictionary<ContactLoadKey, ContactLoad>();
         readonly Dictionary<long, float> pairCooldown = new Dictionary<long, float>();
 
+        // Pieces a machine is carrying: contacts with the load are not impacts, so a bucket cannot shatter its own cargo.
+        readonly HashSet<int> impactImmune = new HashSet<int>();
+
+        /// <summary>Exempt (or restore) every piece of a body from impact damage while a machine carries it.</summary>
+        public void SetImpactImmune(Rigidbody body, bool immune)
+        {
+            if (body == null) return;
+            var k = body.GetComponent<RigidCluster>();
+            if (k == null) return;
+            foreach (int i in k.pieces)
+            {
+                if (immune) impactImmune.Add(i);
+                else impactImmune.Remove(i);
+            }
+        }
+
         /// <summary>Last explosion applied, for tests and diagnostics: how many bodies received an impulse.</summary>
         public int LastExplosionBodyCount { get; private set; }
         public int ExplosionCount { get; private set; }
@@ -344,7 +360,7 @@ namespace DestructionLab
 
         void ApplyImpact(int piece, float energy)
         {
-            if (piece < 0 || pieces[piece].removed) return;
+            if (piece < 0 || pieces[piece].removed || impactImmune.Contains(piece)) return;
             // Hard enough hits shatter the piece itself, connected or loose.
             if (energy / Mathf.Max(1f, Graph.mass[piece]) >= Settings.fragments.impactShatterEnergyPerKg)
                 RequestShatter(piece, FailureReason.Impact);

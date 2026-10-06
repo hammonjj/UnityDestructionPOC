@@ -152,6 +152,7 @@ namespace DestructionLab
             contacts.Clear();
             contactLoads.Clear();
             pairCooldown.Clear();
+            impactImmune.Clear();
             colliderToPiece.Clear();
             log.Clear();
             pieces.Clear();

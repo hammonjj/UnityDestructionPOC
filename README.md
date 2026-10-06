@@ -59,6 +59,55 @@ The on-screen panels give the same information. The scenario panel is on the lef
 
 Driving does not collide with the warehouse, so the crane can be driven through it. The code is in `Runtime/Crane/`.
 
+### Excavator yard
+
+Four excavators stand in a row south of the crane, each facing a labelled destructible target: a **concrete crusher** (capped concrete wall and columns), a **steel shear** (segmented steel portal frame), a **hydraulic breaker** (3 × 3 ground slab) and a **sorting grapple** (loose chunks and timbers, plus one block over the 2.5 t lift limit). They share one Blender model (`Tools/blender/build_excavator.py`, handoff in `Tools/blender/Excavator/HANDOFF.md`) with interchangeable attachments. Walk to a machine's cab steps and use the same enter/exit buttons as the crane. While you operate any machine, a controls panel in the bottom-left corner lists its live bindings for the device you last used.
+
+| Action | Keyboard + mouse | Gamepad |
+|---|---|---|
+| Drive forward / back | W / S | Left stick up / down |
+| Turn the tracks | A / D | Left stick left / right |
+| Swing the upper body | Z / C | Right stick left / right |
+| Raise / lower the boom | R / F | Right stick up / down |
+| Extend / retract the stick | T / G | Hold LB + right stick up / down |
+| Curl the attachment in / out | Y / H | Hold LB + right stick left / right |
+| Close jaws / run the breaker | Left mouse (hold) | Right trigger (proportional; breaker above 35%) |
+| Open jaws (not on the breaker) | Right mouse (hold) | Left trigger |
+| Leave | E | B or X |
+
+E is the enter/exit key, so the suggested Q/E swing moved to Z/C and the curl to Y/H. While LB is held, the right stick moves only the stick and wrist. Leaving stops all powered motion and holds the pose; a grapple keeps its load until you open it. Reset (Backspace / Start) takes you out of any machine and rebuilds every target.
+
+Collision: every track, swing, boom, stick, curl and jaw move is refused if it would push the machine further into static structure, intact targets, the crane or another excavator. The tool also stops at the ground. Loose debris and fragments do not block; the moving parts push them aside, though only gently, because the parts are kinematic and simply push overlapping debris clear.
+
+Approximations: jaws stop when they press on something solid, or at a fixed closure while something valid is in the bite. The shear frees the steel segment in its throat by severing that segment's joints rather than cutting a mesh. The attachment housings' collision box stops above the bite, and the boom, stick and jaws use convex hulls, so contact is close but not exact.
+
+### Loader yard (debris cleanup)
+
+East of the excavators (x ≈ 39–51, z ≈ −35…−12) stand an **articulated wheel loader**, a **wheeled skid-steer loader**, a pile of loose concrete rubble in front of each (small chunks, stacked layers, one oversized block each) and a stationary open-top **collection container** (12 × 2.8 m, 1.1 m walls, with a sloped loading chute on the near wall). Models: `Tools/blender/build_wheel_loader.py` and `build_skid_steer.py` (sources in `Tools/blender/WheelLoader` and `SkidSteer`, node/pivot contract in each `HANDOFF.md`, FBX in `Assets/Destruction/Models/`). Walk to the cab steps and use the usual enter/exit buttons.
+
+Loop: drive the bucket into the rubble, curl back and raise, carry it to the container, hold the arms high enough to clear the wall and tip forward. Nothing needs a "collect" button.
+
+| Action | Keyboard / mouse | Gamepad |
+|---|---|---|
+| Forward / reverse | W / S | Left stick Y |
+| Steer (wheel loader bends, skid steer turns, in place too) | A / D | Left stick X |
+| Raise / lower arms | R / F | Right stick Y |
+| Curl back / tip forward | Z / C | Right stick X |
+| Exit | E | B or X |
+
+E is enter/exit, so the suggested Q/E bucket tilt is Z/C (the excavators' swing keys). Sticks use a dead zone (0.18) and a response curve; inversion per axis is `LoaderTuning.invertDrive/Steer/Lift/Tilt` on the bootstrap. Every drive, steering, lift, tilt, capacity and articulation limit is on `CraneTestBootstrap.wheelLoaderTuning` / `skidSteerTuning`. The controls panel (bottom-left) shows the live bindings and bucket load; a bar in the top-right shows cleanup progress and the bucket's load against its capacity.
+
+| | Wheel loader | Skid steer |
+|---|---|---|
+| Steering | chassis bends ±38° at the central pivot (articulated-vehicle kinematics) | left/right wheel sides at different speeds; spins in place |
+| Top speed | 5.0 m/s | 3.6 m/s |
+| Bucket capacity | 4,500 kg, pieces up to 2,000 kg / 1.4 m | 900 kg, pieces up to 400 kg / 0.9 m |
+| Arms | 0–64° | 0–66° |
+
+**Load model (an approximation).** Debris stays ordinary destruction pieces, including fragments produced in play. A piece is scooped when its centre is inside the bucket cavity, or just ahead of the cutting edge while the bucket moves forward into it, with a clear line of sight from the lip (nothing is taken through walls, from behind or from the sides). It then glides into a height-map packing of the cavity and is frozen there as a kinematic body (impact damage off), so loads are stable at any speed and nothing is lost; when the packing is full or the mass limit is reached the rest stays outside. Oversized or too heavy pieces are never taken. Tipping the opening past 20° (or rolling the bucket on its side) releases pieces one at a time, lip first, as dynamic bodies with a short push along the floor. There is no fluid or per-fragment aggregate; a huge number of tiny fragments is limited by the cavity packing. The buckets tip down to 95° (wheel loader) and 140° (skid steer) from their arms, so material can be shaken out steeply; the wheel loader's bucket back meets its arm mesh slightly beyond about 67°, a visual overlap only.
+
+**Accounting.** Mass is credited once per piece, only when an unloaded piece has stayed inside the container's interior for 0.5 s and is not being carried; hovering above the container with a full bucket earns nothing. Accepted pieces are marked no-shatter (so fragmenting cannot duplicate credit) and freeze where they settle, so the rubble pile in the container grows and cannot be thrown back out. Nothing in the world removes debris except the kill plane, so a loaded piece cannot vanish. Reset releases both buckets, restores both machines, rebuilds the debris and clears the ledger.
+
 ## Scenarios
 
 | # | What you do | What you should see |

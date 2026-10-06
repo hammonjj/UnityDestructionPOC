@@ -20,6 +20,13 @@ namespace DestructionLab
         public float driveSpeed = 4f;       // m/s
         public float turnSpeed = 25f;       // deg/s
 
+        [Header("Inertia (how long the machine takes to reach speed)")]
+        public float slewAccel = 14f;       // deg/s²
+        public float luffAccel = 10f;       // deg/s²
+        public float winchAccel = 4f;       // m/s²
+        public float driveAccel = 2.5f;     // m/s²
+        public float turnAccel = 20f;       // deg/s²
+
         [Header("Limits")]
         public float minBoomAngle = 28f;
         public float maxBoomAngle = 78f;
@@ -160,42 +167,104 @@ namespace DestructionLab
 
         // ------------------------------------------------------------------ controls (call from Update)
 
+        // Inputs are -1..1 requests for this frame. The machine has momentum: speeds ramp toward the request and coast
+        // down when it is released, so the boom tip accelerates smoothly and the heavy ball lags, then swings on.
+
         /// <summary>Rotate the upper carriage. +1 turns clockwise seen from above.</summary>
-        public void Slew(float input, float dt)
-        {
-            float d = input * slewSpeed * dt;
-            if (Mathf.Approximately(d, 0f)) return;
-            Carriage.Rotate(transform.up, d, Space.World);
-            SlewAngle += d;
-        }
+        public void Slew(float input) => inSlew = input;
 
         /// <summary>Raise (+1) or lower (-1) the boom.</summary>
-        public void Luff(float input, float dt)
-        {
-            float d = Mathf.Clamp(BoomAngle + input * luffSpeed * dt, minBoomAngle, maxBoomAngle) - BoomAngle;
-            if (Mathf.Approximately(d, 0f)) return;
-            Boom.RotateAround(Boom.position, Carriage.right, d * luffSign);
-            BoomAngle += d;
-        }
+        public void Luff(float input) => inLuff = input;
 
         /// <summary>Pay out cable (+1, ball goes down) or reel it in (-1).</summary>
-        public void Winch(float input, float dt)
-        {
-            if (Mathf.Approximately(input, 0f)) return;
-            CableLength = Mathf.Clamp(CableLength + input * winchSpeed * dt, minCable, maxCable);
-            var limit = rope.linearLimit;
-            limit.limit = CableLength;
-            rope.linearLimit = limit;
-            Ball.WakeUp();
-        }
+        public void Winch(float input) => inWinch = input;
 
-        float pendingForward, pendingTurn;
+        float inSlew, inLuff, inWinch, slewVel, luffVel, winchVel;
+        float pendingForward, pendingTurn, driveVel, turnVel;
 
-        /// <summary>Drive the tracks: forward/back and turn on the spot. Applied in FixedUpdate.</summary>
+        /// <summary>Drive the tracks: forward/back and turn on the spot. Latched until the next call.</summary>
         public void Drive(float forward, float turn)
         {
             pendingForward = forward;
             pendingTurn = turn;
+        }
+
+        /// <summary>Speed toward a target; braking (toward zero or reversing) is quicker than speeding up.</summary>
+        static float Approach(float v, float target, float accel, float dt)
+        {
+            bool braking = Mathf.Abs(target) < Mathf.Abs(v) || v * target < 0f;
+            return Mathf.MoveTowards(v, target, accel * (braking ? 1.5f : 1f) * dt);
+        }
+
+        void Integrate(float dt)
+        {
+            slewVel = Approach(slewVel, Mathf.Clamp(inSlew, -1f, 1f) * slewSpeed, slewAccel, dt);
+            luffVel = Approach(luffVel, Mathf.Clamp(inLuff, -1f, 1f) * luffSpeed, luffAccel, dt);
+            winchVel = Approach(winchVel, Mathf.Clamp(inWinch, -1f, 1f) * winchSpeed, winchAccel, dt);
+            inSlew = inLuff = inWinch = 0f;
+
+            if (slewVel != 0f)
+            {
+                float d = slewVel * dt;
+                Physics.SyncTransforms();
+                float before = Collision.Penetration(carriageColliders);
+                Carriage.Rotate(transform.up, d, Space.World);
+                Physics.SyncTransforms();
+                if (Collision.Penetration(carriageColliders) > before + Collision.tolerance)
+                {
+                    // The carriage stops against walls instead of sweeping through them.
+                    Carriage.Rotate(transform.up, -d, Space.World);
+                    Physics.SyncTransforms();
+                    slewVel = 0f;
+                    Blocked++;
+                }
+                else SlewAngle += d;
+            }
+            if (luffVel != 0f)
+            {
+                // Compare against the limits, not "approximately zero": at very high frame rates a step is below
+                // float resolution and would wrongly read as a stall.
+                float next = BoomAngle + luffVel * dt;
+                if (next <= minBoomAngle || next >= maxBoomAngle)
+                {
+                    next = Mathf.Clamp(next, minBoomAngle, maxBoomAngle);
+                    luffVel = 0f;
+                }
+                float d = next - BoomAngle;
+                if (d != 0f)
+                {
+                    Physics.SyncTransforms();
+                    float before = Collision.Penetration(boomColliders);
+                    Boom.RotateAround(Boom.position, Carriage.right, d * luffSign);
+                    Physics.SyncTransforms();
+                    if (Collision.Penetration(boomColliders) > before + Collision.tolerance)
+                    {
+                        // The boom rests on the roof instead of passing through it.
+                        Boom.RotateAround(Boom.position, Carriage.right, -d * luffSign);
+                        Physics.SyncTransforms();
+                        luffVel = 0f;
+                        Blocked++;
+                    }
+                    else BoomAngle = next;
+                }
+            }
+            if (winchVel != 0f)
+            {
+                float len = CableLength + winchVel * dt;
+                if (len <= minCable || len >= maxCable)
+                {
+                    len = Mathf.Clamp(len, minCable, maxCable);
+                    winchVel = 0f;
+                }
+                if (len != CableLength)
+                {
+                    CableLength = len;
+                    var limit = rope.linearLimit;
+                    limit.limit = CableLength;
+                    rope.linearLimit = limit;
+                    Ball.WakeUp();
+                }
+            }
         }
 
         // ------------------------------------------------------------------ simulation
@@ -204,18 +273,45 @@ namespace DestructionLab
         {
             if (body == null) return;
             float dt = Time.fixedDeltaTime;
-            if (pendingForward != 0f || pendingTurn != 0f)
+            driveVel = Approach(driveVel, Mathf.Clamp(pendingForward, -1f, 1f) * driveSpeed, driveAccel, dt);
+            turnVel = Approach(turnVel, Mathf.Clamp(pendingTurn, -1f, 1f) * turnSpeed, turnAccel, dt);
+            if (driveVel != 0f || turnVel != 0f)
             {
-                body.MoveRotation(Quaternion.AngleAxis(pendingTurn * turnSpeed * dt, Vector3.up) * body.rotation);
-                body.MovePosition(body.position + body.rotation * Vector3.forward * (pendingForward * driveSpeed * dt));
-                Ball.WakeUp();
+                Quaternion rot = Quaternion.AngleAxis(turnVel * dt, Vector3.up) * body.rotation;
+                Vector3 pos = body.position + rot * Vector3.forward * (driveVel * dt);
+                if (Collision.MoveBlocked(transform, body, allColliders, pos, rot))
+                {
+                    // Tracks stall against buildings and other machines.
+                    driveVel = turnVel = 0f;
+                    Blocked++;
+                }
+                else
+                {
+                    body.MoveRotation(rot);
+                    body.MovePosition(pos);
+                    Ball.WakeUp();
+                }
             }
             tipBody.MovePosition(tipAnchor.position);
+        }
+
+        /// <summary>Raised when the ball strikes something at speed: relative speed (m/s) and contact point.</summary>
+        public event System.Action<float, Vector3> BallHit;
+
+        sealed class BallImpactRelay : MonoBehaviour
+        {
+            public CraneRig rig;
+            void OnCollisionEnter(Collision c)
+            {
+                float v = c.relativeVelocity.magnitude;
+                if (v >= 2.5f) rig.BallHit?.Invoke(v, c.GetContact(0).point);
+            }
         }
 
         void LateUpdate()
         {
             if (Ball == null) return;
+            Integrate(Time.deltaTime);
             Stretch(suspension, tipAnchor.position, ballAttach.position, suspensionBaseLength);
             foreach (var l in links)
                 Stretch(l.cable, l.topFrame.TransformPoint(l.topLocal), l.bottomFrame.TransformPoint(l.bottomLocal), l.baseLength);
@@ -230,6 +326,7 @@ namespace DestructionLab
             Boom.localRotation = startBoomRot;
             BoomAngle = startBoomAngle;
             SlewAngle = 0f;
+            slewVel = luffVel = winchVel = driveVel = turnVel = 0f;
             CableLength = startCable;
             var limit = rope.linearLimit;
             limit.limit = CableLength;
@@ -273,12 +370,30 @@ namespace DestructionLab
 
         void AddStructureColliders()
         {
-            foreach (var name in new[] { "Crane_Base", "Crane_TrackL", "Crane_TrackR", "Crane_UpperCarriage" })
+            foreach (var name in new[] { "Crane_Base", "Crane_TrackL", "Crane_TrackR", "Crane_UpperCarriage", "Crane_Boom" })
             {
                 var t = Find(name);
-                if (t.GetComponent<MeshCollider>() == null) t.gameObject.AddComponent<MeshCollider>();
+                var mc = t.GetComponent<MeshCollider>();
+                if (mc == null) mc = t.gameObject.AddComponent<MeshCollider>();
+                // Base, tracks and boom are solid hulls, so debris cannot end up inside them. The carriage stays
+                // concave: its hull would fill the space under the A-frame.
+                mc.convex = name != "Crane_UpperCarriage";
+                Collision.own.Add(mc);
+                allColliders.Add(mc);
+                if (name == "Crane_UpperCarriage" || name == "Crane_Boom") carriageColliders.Add(mc); // both slew
+                if (name == "Crane_Boom") boomColliders.Add(mc);
             }
         }
+
+        // ------------------------------------------------------------------ collision with the world
+
+        /// <summary>Drive and slew refuse moves that would push the crane into buildings, other machines or heavy
+        /// debris (CraneTest adds the ground to <see cref="RigCollision.ignore"/>). Light debris is pushed.</summary>
+        public readonly RigCollision Collision = new RigCollision();
+        readonly List<Collider> allColliders = new List<Collider>(), carriageColliders = new List<Collider>(), boomColliders = new List<Collider>();
+
+        /// <summary>Count of refused moves, for tests.</summary>
+        public int Blocked { get; private set; }
 
         void BuildBall(Transform ballNode)
         {
@@ -292,7 +407,9 @@ namespace DestructionLab
             var col = go.AddComponent<SphereCollider>();
             col.radius = 0.75f;
             col.providesContacts = true;
-            col.sharedMaterial = new PhysicsMaterial("WreckingBall") { dynamicFriction = 0.5f, staticFriction = 0.5f, bounciness = 0.1f };
+            col.sharedMaterial = new PhysicsMaterial("WreckingBall") { dynamicFriction = 0.5f, staticFriction = 0.5f, bounciness = 0f, bounceCombine = PhysicsMaterialCombine.Minimum };
+            go.AddComponent<BallImpactRelay>().rig = this;
+            Collision.ignore.Add(col); // the crane never stalls against its own ball
 
             Ball = go.AddComponent<Rigidbody>();
             Ball.mass = ballMass;

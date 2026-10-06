@@ -15,6 +15,9 @@ namespace DestructionLab.EditorTools
     {
         const string ScenePath = "Assets/Scenes/CraneTest.unity";
         const string CraneModelPath = "Assets/Destruction/Models/WreckingCrane/WreckingCrane.fbx";
+        const string ExcavatorModelPath = "Assets/Destruction/Models/Excavator/Excavator.fbx";
+        const string WheelLoaderModelPath = "Assets/Destruction/Models/WheelLoader/WheelLoader.fbx";
+        const string SkidSteerModelPath = "Assets/Destruction/Models/SkidSteer/SkidSteer.fbx";
         const string MaterialDir = "Assets/Destruction/Materials/Crane";
 
         // name, Blender linear base colour, metallic, roughness (mirrors Tools/blender/build_wrecking_crane.py)
@@ -55,6 +58,13 @@ namespace DestructionLab.EditorTools
             {
                 cam.clearFlags = CameraClearFlags.SolidColor;
                 cam.backgroundColor = new Color(0.55f, 0.64f, 0.74f);
+                // Fixed three-quarter overhead view; tune on the component. Field defaults match the class.
+                cam.gameObject.AddComponent<CraneOverheadCamera>();
+                cam.orthographic = false;
+                cam.fieldOfView = 35f;
+                cam.orthographicSize = 13f;
+                cam.nearClipPlane = 1f;
+                cam.farClipPlane = 250f;
             }
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = new Color(0.45f, 0.47f, 0.5f);
@@ -64,6 +74,12 @@ namespace DestructionLab.EditorTools
             boot.settings = settings;
             boot.craneModel = crane;
             boot.warehouseModel = warehouse;
+            // Excavators share the crane's materials and import settings.
+            boot.excavatorModel = ConfigurePropModel(ExcavatorModelPath);
+            if (boot.excavatorModel == null) Debug.LogWarning("[DestructionLab] excavator FBX missing; CraneTest built without excavators.");
+            boot.wheelLoaderModel = ConfigurePropModel(WheelLoaderModelPath);
+            boot.skidSteerModel = ConfigurePropModel(SkidSteerModelPath);
+            if (boot.wheelLoaderModel == null || boot.skidSteerModel == null) Debug.LogWarning("[DestructionLab] loader FBX missing; CraneTest built without it.");
 
             Directory.CreateDirectory("Assets/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -75,9 +91,11 @@ namespace DestructionLab.EditorTools
             Debug.Log("[DestructionLab] Crane test scene rebuilt.");
         }
 
-        static GameObject ConfigureCraneModel()
+        static GameObject ConfigureCraneModel() => ConfigurePropModel(CraneModelPath);
+
+        static GameObject ConfigurePropModel(string modelPath)
         {
-            var importer = AssetImporter.GetAtPath(CraneModelPath) as ModelImporter;
+            var importer = AssetImporter.GetAtPath(modelPath) as ModelImporter;
             if (importer == null) return null;
             Directory.CreateDirectory(MaterialDir);
 
@@ -111,7 +129,7 @@ namespace DestructionLab.EditorTools
             importer.importAnimation = false;
             importer.animationType = ModelImporterAnimationType.None;
             importer.SaveAndReimport();
-            return AssetDatabase.LoadAssetAtPath<GameObject>(CraneModelPath);
+            return AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
         }
     }
 }

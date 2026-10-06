@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &1304003017
+--- !u!1 &614226798
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,100 +127,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1304003020}
-  - component: {fileID: 1304003019}
-  - component: {fileID: 1304003018}
-  m_Layer: 0
-  m_Name: Main Camera
-  m_TagString: MainCamera
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!81 &1304003018
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1304003017}
-  m_Enabled: 1
---- !u!20 &1304003019
-Camera:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1304003017}
-  m_Enabled: 1
-  serializedVersion: 2
-  m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.55, g: 0.64, b: 0.74, a: 1}
-  m_projectionMatrixMode: 1
-  m_GateFitMode: 2
-  m_FOVAxisMode: 0
-  m_Iso: 200
-  m_ShutterSpeed: 0.005
-  m_Aperture: 16
-  m_FocusDistance: 10
-  m_FocalLength: 50
-  m_BladeCount: 5
-  m_Curvature: {x: 2, y: 11}
-  m_BarrelClipping: 0.25
-  m_Anamorphism: 0
-  m_SensorSize: {x: 36, y: 24}
-  m_LensShift: {x: 0, y: 0}
-  m_NormalizedViewPortRect:
-    serializedVersion: 2
-    x: 0
-    y: 0
-    width: 1
-    height: 1
-  near clip plane: 0.3
-  far clip plane: 1000
-  field of view: 60
-  orthographic: 0
-  orthographic size: 5
-  m_Depth: -1
-  m_CullingMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_RenderingPath: -1
-  m_TargetTexture: {fileID: 0}
-  m_TargetDisplay: 0
-  m_TargetEye: 3
-  m_HDR: 1
-  m_AllowMSAA: 1
-  m_AllowDynamicResolution: 0
-  m_ForceIntoRT: 0
-  m_OcclusionCulling: 1
-  m_StereoConvergence: 10
-  m_StereoSeparation: 0.022
---- !u!4 &1304003020
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1304003017}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: -10}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1320498011
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1320498013}
-  - component: {fileID: 1320498012}
+  - component: {fileID: 614226800}
+  - component: {fileID: 614226799}
   m_Layer: 0
   m_Name: Crane Test
   m_TagString: Untagged
@@ -228,13 +136,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1320498012
+--- !u!114 &614226799
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1320498011}
+  m_GameObject: {fileID: 614226798}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0c83a9b73c5834c579997c5d8c7a7222, type: 3}
@@ -243,16 +151,91 @@ MonoBehaviour:
   settings: {fileID: 11400000, guid: 22cb10cb231da4296bcabb2b7291690c, type: 2}
   craneModel: {fileID: 919132149155446097, guid: b92c61dc59fba41baaee28ac75c683eb, type: 3}
   warehouseModel: {fileID: 919132149155446097, guid: 47ce19a94d064427a8c7afeb25859277, type: 3}
+  excavatorModel: {fileID: 919132149155446097, guid: 42e6b423710144a649cdcbd4ce55a825, type: 3}
+  wheelLoaderModel: {fileID: 919132149155446097, guid: 78c3faba0deee46949f993e97b9d233b, type: 3}
+  skidSteerModel: {fileID: 919132149155446097, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+  wheelLoaderTuning:
+    maxSpeed: 5
+    reverseScale: 0.8
+    accel: 2.2
+    brake: 5.5
+    maxArticulation: 38
+    articulationSpeed: 30
+    turnMix: 0.55
+    liftSpeed: 16
+    liftAccel: 50
+    liftMaxAngle: 64
+    tiltSpeed: 40
+    tiltAccel: 140
+    bucketLocalMin: -45
+    bucketLocalMax: 95
+    curlLimit: -50
+    selfLevel: 1
+    capacityKg: 4500
+    maxPieceMassKg: 2000
+    maxPieceSize: 1.4
+    dumpAngle: 20
+    scoopReach: 0.6
+    scoopHeight: 0.7
+    scoopMinSpeed: 0.2
+    loadInTime: 0.35
+    releaseInterval: 0.12
+    releaseShove: 1.8
+    stickExponent: 1.4
+    invertDrive: 0
+    invertSteer: 0
+    invertLift: 0
+    invertTilt: 0
+  skidSteerTuning:
+    maxSpeed: 3.6
+    reverseScale: 0.8
+    accel: 3.4
+    brake: 7
+    maxArticulation: 38
+    articulationSpeed: 30
+    turnMix: 0.55
+    liftSpeed: 22
+    liftAccel: 70
+    liftMaxAngle: 66
+    tiltSpeed: 55
+    tiltAccel: 180
+    bucketLocalMin: -55
+    bucketLocalMax: 140
+    curlLimit: -50
+    selfLevel: 1
+    capacityKg: 900
+    maxPieceMassKg: 400
+    maxPieceSize: 0.9
+    dumpAngle: 32
+    scoopReach: 0.45
+    scoopHeight: 0.5
+    scoopMinSpeed: 0.15
+    loadInTime: 0.35
+    releaseInterval: 0.12
+    releaseShove: 1.8
+    stickExponent: 1.4
+    invertDrive: 0
+    invertSteer: 0
+    invertLift: 0
+    invertTilt: 0
+  containerInterior: {x: 12, y: 1.1, z: 2.8}
   cranePosition: {x: 0, y: 0, z: -14}
   playerPosition: {x: -7, y: 0.1, z: -13}
   playerYaw: 90
---- !u!4 &1320498013
+  excavatorRowZ: -30
+  excavatorSpacing: 16
+  targetDistance: 7
+  jawCloseAngles: {x: 50.4, y: 40, z: 0, w: 59.55}
+  breakerStroke: 0.25
+  overheadCamera: 1
+  avatarColor: {r: 0.95, g: 0.35, b: 0.2, a: 1}
+--- !u!4 &614226800
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1320498011}
+  m_GameObject: {fileID: 614226798}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -261,7 +244,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1961580756
+--- !u!1 &1084781790
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -269,8 +252,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1961580758}
-  - component: {fileID: 1961580757}
+  - component: {fileID: 1084781793}
+  - component: {fileID: 1084781792}
+  - component: {fileID: 1084781791}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -278,13 +262,42 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!108 &1961580757
+--- !u!114 &1084781791
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1084781790}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_CustomShadowLayers: 0
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
+  m_RenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_ShadowRenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_Version: 4
+  m_LightLayerMask: 1
+  m_ShadowLayerMask: 1
+  m_RenderingLayers: 1
+  m_ShadowRenderingLayers: 1
+--- !u!108 &1084781792
 Light:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1961580756}
+  m_GameObject: {fileID: 1084781790}
   m_Enabled: 1
   serializedVersion: 13
   m_Type: 1
@@ -343,13 +356,13 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
---- !u!4 &1961580758
+--- !u!4 &1084781793
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1961580756}
+  m_GameObject: {fileID: 1084781790}
   serializedVersion: 2
   m_LocalRotation: {x: 0.109381676, y: 0.8754261, z: -0.40821794, w: 0.23456974}
   m_LocalPosition: {x: 0, y: 3, z: 0}
@@ -358,10 +371,129 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+--- !u!1 &2046484155
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2046484159}
+  - component: {fileID: 2046484158}
+  - component: {fileID: 2046484157}
+  - component: {fileID: 2046484156}
+  m_Layer: 0
+  m_Name: Main Camera
+  m_TagString: MainCamera
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2046484156
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2046484155}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b1e7c3a94d84f2e8a6d0c2f71b93e44, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DestructionLab.Runtime::DestructionLab.CraneOverheadCamera
+  pitch: 35
+  yaw: 45
+  orthographicSize: 13
+  perspective: 1
+  fieldOfView: 35
+  distance: 80
+  nearClip: 1
+  farClip: 250
+  target: {fileID: 0}
+  focusOffset: {x: 0, y: 1, z: 0}
+  framingOffset: {x: 0, y: 0}
+  followSmoothing: 0.12
+  verticalDeadZone: 1.5
+  teleportDistance: 15
+--- !u!81 &2046484157
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2046484155}
+  m_Enabled: 1
+--- !u!20 &2046484158
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2046484155}
+  m_Enabled: 1
+  serializedVersion: 2
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 0.55, g: 0.64, b: 0.74, a: 1}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 1
+  far clip plane: 250
+  field of view: 35
+  orthographic: 0
+  orthographic size: 13
+  m_Depth: -1
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 0}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
+--- !u!4 &2046484159
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2046484155}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1, z: -10}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1304003020}
-  - {fileID: 1961580758}
-  - {fileID: 1320498013}
+  - {fileID: 2046484159}
+  - {fileID: 1084781793}
+  - {fileID: 614226800}
