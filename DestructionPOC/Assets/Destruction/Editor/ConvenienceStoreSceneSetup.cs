@@ -48,6 +48,7 @@ namespace DestructionLab.EditorTools
             yard.craneModel = CraneTestSceneSetup.ConfigurePropModel(CraneTestSceneSetup.CraneModel);
             yard.skidSteerModel = CraneTestSceneSetup.ConfigurePropModel(CraneTestSceneSetup.SkidSteerModel);
             yard.dozerModel = CraneTestSceneSetup.ConfigurePropModel(CraneTestSceneSetup.DozerModel);
+            yard.excavatorModel = CraneTestSceneSetup.ConfigurePropModel(CraneTestSceneSetup.ExcavatorModel);
             if (yard.craneModel == null)
             {
                 Debug.LogWarning("[DestructionLab] crane FBX missing; convenience store built without the drivable yard.");
@@ -57,6 +58,7 @@ namespace DestructionLab.EditorTools
             {
                 if (yard.skidSteerModel == null) Debug.LogWarning("[DestructionLab] skid steer FBX missing; store yard built without it.");
                 if (yard.dozerModel == null) Debug.LogWarning("[DestructionLab] landfill dozer FBX missing; store yard built without it.");
+                if (yard.excavatorModel == null) Debug.LogWarning("[DestructionLab] excavator FBX missing; store yard built without it.");
                 boot.yard = yard;
             }
 

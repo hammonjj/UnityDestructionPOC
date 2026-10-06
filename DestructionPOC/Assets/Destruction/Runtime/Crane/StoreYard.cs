@@ -11,11 +11,10 @@ namespace DestructionLab
     ///
     /// Layout (Unity metres; the lot is x -25..25, z -20..20 and the store is at x 4..16, z -18..-10, front toward +Z):
     ///
-    ///     z = -14   crane (-8)                        [ store ]
+    ///     z = -15   parking line facing +Z, west of the store:
+    ///                 excavator (-22.5), dozer (-15.5), skid steer (-8.5), crane (-1.5), 7 m apart   [ store x 4..16 ]
     ///     z =  -2   player start (4.5)  cars, pump canopy (x -14..-2)
-    ///     z =   2   skid steer (14.5)
     ///     z = 6.6..11.4   roll-off container, x 6..22 (loaders reach its near wall from the store side)
-    ///     z =  14   dozer (-4)
     ///
     /// Controls. The lab's keys and the player's keys overlap, so they are split by context:
     ///   On foot  WASD move, Shift run, Space jump, E climb into a machine, V first-person / overhead view,
@@ -23,7 +22,8 @@ namespace DestructionLab
     ///            P pause (Space is jump here), . step, [ ] slow motion, F1/F2 overlays, H hide stats.
     ///   In a rig The rig's own keys only (crane: A/D slew, W/S boom, R/F ball, arrows drive; loaders: W/S, A/D, R/F,
     ///            Z/C). Every lab shortcut is ignored in a cab, so R winches instead of resetting. E exits;
-    ///            Backspace still resets (it is bound to nothing else). The mouse tools stay live.
+    ///            Backspace still resets (it is bound to nothing else). The mouse tools stay live, except in the excavator,
+    ///            whose breaker runs on the left mouse button (hold LMB; the destroy tool is not fired).
     ///   Disabled N / B / PageUp / PageDown scenario switching (the machines belong to the store scenario), and the
     ///            lab's orbit camera, WASD/QE panning and F re-frame (the overhead player camera replaces it).
     /// </summary>
@@ -36,10 +36,20 @@ namespace DestructionLab
         public DozerTuning dozerTuning = new DozerTuning();
         public LoaderTuning skidSteerTuning = LoaderTuning.SkidSteer();
 
+        [Tooltip("Excavator FBX (base + attachments). The yard fits the hydraulic breaker (the jackhammer).")]
+        public GameObject excavatorModel;
+        public ExcavatorAttachment excavatorAttachment = ExcavatorAttachment.Breaker;
+        public float excavatorJawCloseAngle = 30f;
+        public float excavatorBitStroke = 0.25f;
+
         [Header("Layout (Unity metres, outside the building footprint)")]
-        public Vector3 cranePosition = new Vector3(-8f, 0f, -14f);
-        public Vector3 skidSteerPosition = new Vector3(14.5f, 0f, 2f);
-        public Vector3 dozerPosition = new Vector3(-4f, 0f, 14f);
+        [Tooltip("The machines park in one line along the lot's west side of the store (z = parkingRowZ), all facing +Z (out into the lot), with the crane at the end nearest the store.")]
+        public float parkingRowZ = -15f;
+        public float parkingYaw = 0f;
+        public Vector3 cranePosition = new Vector3(-1.5f, 0f, -15f);
+        public Vector3 skidSteerPosition = new Vector3(-8.5f, 0f, -15f);
+        public Vector3 dozerPosition = new Vector3(-15.5f, 0f, -15f);
+        public Vector3 excavatorPosition = new Vector3(-22.5f, 0f, -15f);
         public Vector3 containerPosition = new Vector3(14f, 0f, 9f);
         [Tooltip("Interior of the roll-off container: length (x), wall height (y), width (z). Big enough to take a store's worth of rubble; the walls stay low enough for the skid steer to dump over.")]
         public Vector3 containerInterior = new Vector3(16f, 1.1f, 4.8f);
@@ -52,6 +62,7 @@ namespace DestructionLab
         public CraneRig Crane { get; private set; }
         public LoaderRig SkidSteer { get; private set; }
         public DozerRig Dozer { get; private set; }
+        public ExcavatorRig Excavator { get; private set; }
         public CollectionContainer Container { get; private set; }
         public CranePlayer Player { get; private set; }
 
@@ -76,12 +87,15 @@ namespace DestructionLab
             BuildCrane();
             if (skidSteerModel != null) BuildSkidSteer();
             if (dozerModel != null) BuildDozer();
+            if (excavatorModel != null) BuildExcavator();
             BuildPlayer(cam, overhead);
 
             var lab2 = lab.Controller;
             lab2.pauseKey = Key.P;                 // Space jumps
             lab2.scenarioSwitching = false;
             lab2.keysBlocked = () => Player != null && Player.InCab;
+            // The excavator's breaker / jaws run on the left mouse button, so a click must not also fire the destroy tool.
+            lab2.clickBlocked = () => Player != null && Excavator != null && Player.Current == (IOperableRig)Excavator;
             lab2.onResetRequested = ResetAll;
             Ledger.Reset(World, SkidSteer != null ? SkidSteer.tuning.maxPieceMassKg : 0f);
             Ledger.ResetBuilding(World);
@@ -102,8 +116,8 @@ namespace DestructionLab
         void BuildCrane()
         {
             var go = new GameObject("Wrecking Crane", typeof(Rigidbody));
-            go.transform.position = cranePosition;
-            Crane = go.AddComponent<CraneRig>();
+            go.transform.SetPositionAndRotation(cranePosition, Quaternion.Euler(0f, parkingYaw, 0f));
+            Crane =go.AddComponent<CraneRig>();
             Crane.Build(Instantiate(craneModel));
             go.AddComponent<CraneOperable>();
             Crane.Collision.ignore.Add(ground);
@@ -112,7 +126,7 @@ namespace DestructionLab
         void BuildSkidSteer()
         {
             var go = new GameObject("Skid-Steer Loader", typeof(Rigidbody));
-            go.transform.SetPositionAndRotation(skidSteerPosition, Quaternion.identity);
+            go.transform.SetPositionAndRotation(skidSteerPosition, Quaternion.Euler(0f, parkingYaw, 0f));
             SkidSteer = go.AddComponent<LoaderRig>();
             SkidSteer.world = World;
             SkidSteer.ledger = Ledger;
@@ -124,12 +138,24 @@ namespace DestructionLab
         void BuildDozer()
         {
             var go = new GameObject("Landfill Dozer", typeof(Rigidbody));
-            go.transform.SetPositionAndRotation(dozerPosition, Quaternion.identity);
+            go.transform.SetPositionAndRotation(dozerPosition, Quaternion.Euler(0f, parkingYaw, 0f));
             Dozer = go.AddComponent<DozerRig>();
             Dozer.world = World;
             Dozer.tuning = dozerTuning;
             Dozer.Collision.ignore.Add(ground);
             Dozer.Build(Instantiate(dozerModel));
+        }
+
+        void BuildExcavator()
+        {
+            var go = new GameObject($"Excavator ({ExcavatorRig.AttachmentLabel(excavatorAttachment)})", typeof(Rigidbody));
+            go.transform.SetPositionAndRotation(excavatorPosition, Quaternion.Euler(0f, parkingYaw, 0f));
+            Excavator = go.AddComponent<ExcavatorRig>();
+            Excavator.world = World;
+            Excavator.jawCloseAngle = excavatorJawCloseAngle;
+            Excavator.bitStroke = excavatorBitStroke;
+            Excavator.Collision.ignore.Add(ground);
+            Excavator.Build(Instantiate(excavatorModel), excavatorAttachment);
         }
 
         void BuildPlayer(Camera cam, CraneOverheadCamera overhead)
@@ -141,6 +167,7 @@ namespace DestructionLab
             Player.rigs.Add(Crane.GetComponent<CraneOperable>());
             if (SkidSteer != null) Player.rigs.Add(SkidSteer);
             if (Dozer != null) Player.rigs.Add(Dozer);
+            if (Excavator != null) Player.rigs.Add(Excavator);
             Player.cam = cam;
             Player.world = World;
             Player.onReset = ResetAll;
@@ -159,6 +186,8 @@ namespace DestructionLab
                 panel.labels.Add(new RigControlsPanel.WorldLabel { position = Vector3.up * 3.4f, text = "SKID STEER", onFootOnly = true, follow = SkidSteer.transform });
             if (Dozer != null)
                 panel.labels.Add(new RigControlsPanel.WorldLabel { position = Vector3.up * 5.2f, text = "LANDFILL DOZER", onFootOnly = true, follow = Dozer.transform });
+            if (Excavator != null)
+                panel.labels.Add(new RigControlsPanel.WorldLabel { position = Vector3.up * 4.2f, text = "EXCAVATOR  ·  " + ExcavatorRig.AttachmentLabel(excavatorAttachment).ToUpperInvariant(), onFootOnly = true, follow = Excavator.transform });
 
             var hud = playerGo.AddComponent<LoaderHud>();
             hud.ledger = Ledger;
@@ -175,6 +204,7 @@ namespace DestructionLab
             // Loaders let go of any load before the world is rebuilt, so no body is left held.
             if (SkidSteer != null) SkidSteer.ResetPose();
             if (Dozer != null) Dozer.ResetPose();
+            if (Excavator != null) Excavator.ResetPose();
             Lab.Controller.Reset();
             Container.ResetState();
             Ledger.Reset(World, SkidSteer != null ? SkidSteer.tuning.maxPieceMassKg : 0f);

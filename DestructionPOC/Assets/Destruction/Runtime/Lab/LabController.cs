@@ -40,6 +40,9 @@ namespace DestructionLab
         /// <summary>While this returns true the lab keyboard shortcuts are ignored (the player is in a cab, where the same
         /// letters drive the machine). Mouse tools are unaffected.</summary>
         public System.Func<bool> keysBlocked;
+        /// <summary>While this returns true a left click does not fire the lab's destroy tool (the player is in a cab that
+        /// uses the left mouse button itself, e.g. the excavator's breaker / jaws).</summary>
+        public System.Func<bool> clickBlocked;
 
         public void RequestReset()
         {
@@ -146,7 +149,8 @@ namespace DestructionLab
             {
                 // A click must start and end outside UI and not be a drag.
                 bool drag = (mouse.position.ReadValue() - pressPos).sqrMagnitude > 36f;
-                if (!pressOverUi && !overUi && !drag) Click(mouse.position.ReadValue());
+                bool blocked = clickBlocked != null && clickBlocked();
+                if (!pressOverUi && !overUi && !drag && !blocked) Click(mouse.position.ReadValue());
             }
         }
 

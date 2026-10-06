@@ -109,37 +109,253 @@ namespace DestructionLab.Tests
 
         // ------------------------------------------------------------------ setup
 
+        // Store x 4..16, z -18..-10; pump canopy x -14..-2, z -6..2 (XZ rectangles, metres).
+        static readonly Rect StoreRect = Rect.MinMaxRect(4f, -18f, 16f, -10f);
+        static readonly Rect CanopyRect = Rect.MinMaxRect(-14f, -6f, -2f, 2f);
+
+        /// <summary>Ground footprint of a rig: the union of its renderers' bounds (excavator included, boom at rest).</summary>
+        static Rect Footprint(Component rig)
+        {
+            Bounds b = default;
+            bool any = false;
+            foreach (var r in rig.GetComponentsInChildren<Renderer>())
+            {
+                if (!r.enabled) continue;
+                if (!any) { b = r.bounds; any = true; }
+                else b.Encapsulate(r.bounds);
+            }
+            Assert.IsTrue(any, rig.name + " has renderers");
+            return Rect.MinMaxRect(b.min.x, b.min.z, b.max.x, b.max.z);
+        }
+
         [UnityTest]
-        public IEnumerator YardHasTheThreeRigsContainerAndPlayerOutsideTheStore()
+        public IEnumerator YardHasTheFourRigsContainerAndPlayerOutsideTheStore()
         {
             Assert.IsNotNull(yard.Crane);
             Assert.IsNotNull(yard.Crane.Ball, "wrecking ball");
             Assert.IsNotNull(yard.SkidSteer);
             Assert.IsNotNull(yard.Dozer);
+            Assert.IsNotNull(yard.Excavator);
             Assert.IsNotNull(yard.Container);
-            Assert.AreEqual(3, player.rigs.Count, "crane + skid steer + dozer are enterable");
+            Assert.AreEqual(4, player.rigs.Count, "crane + skid steer + dozer + excavator are enterable");
+            CollectionAssert.Contains(player.rigs, yard.Excavator);
+            yield return null;
+        }
 
-            // Machines stand on the ground and clear of the store (x 4..16, z -18..-10) and the pump canopy (x -14..-2, z -6..2).
-            var store = new Bounds(new Vector3(10f, 2f, -14f), new Vector3(14f, 10f, 10f));
-            var canopy = new Bounds(new Vector3(-8f, 2f, -2f), new Vector3(14f, 10f, 10f));
-            foreach (var t in new[] { yard.Crane.transform, yard.SkidSteer.transform, yard.Dozer.transform, yard.Container.transform })
+        [UnityTest]
+        public IEnumerator ExcavatorIsTheHydraulicBreakerAndKeepsItsControls()
+        {
+            var ex = yard.Excavator;
+            Assert.AreEqual(ExcavatorAttachment.Breaker, ex.attachment, "starts on the jackhammer");
+            Assert.AreEqual("Excavator", ex.RigName);
+            Assert.AreEqual(ExcavatorRig.AttachmentLabel(ExcavatorAttachment.Breaker), ex.AttachmentName);
+            StandAtDoor(ex);
+            yield return null;
+            yield return Tap(Key.E);
+            Assert.AreSame(ex, player.Current);
+            var panel = player.GetComponent<RigControlsPanel>();
+            panel.Refresh();
+            StringAssert.Contains("EXCAVATOR", panel.LastTitle);
+            StringAssert.Contains("HYDRAULIC BREAKER", panel.LastTitle.ToUpperInvariant());
+            Assert.IsTrue(panel.lastRows.Exists(r => r.Contains("Run breaker")), "the controls panel lists the breaker");
+            Assert.IsTrue(panel.lastRows.Exists(r => r.Contains("Boom up / down")));
+            // Lab shortcuts are ignored in the cab, as for the other rigs.
+            Assert.IsTrue(yard.Lab.Controller.keysBlocked());
+            var tool = yard.Lab.Controller.Tool;
+            yield return Tap(Key.Digit3);
+            Assert.AreEqual(tool, yard.Lab.Controller.Tool, "1-4 ignored in the excavator cab");
+            // The breaker runs on LMB, so a click there must not also fire the lab's destroy tool; on foot it still does.
+            Assert.IsTrue(yard.Lab.Controller.clickBlocked(), "LMB belongs to the breaker in the cab");
+            yield return Tap(Key.E);
+            Assert.IsNull(player.Current);
+            Assert.IsFalse(yard.Lab.Controller.clickBlocked(), "LMB fires the destroy tool on foot");
+        }
+
+        [UnityTest]
+        public IEnumerator BreakerStrikesDamageTheStoreWall()
+        {
+            var ex = yard.Excavator;
+            // A brick bulkhead panel of the store's front wall (z ~ -10.2, 0.8 m tall).
+            int target = world.Graph.pieces.FindIndex(p => p.name.StartsWith("Wall_Bulkhead_R1"));
+            Assert.GreaterOrEqual(target, 0, "a front-wall brick piece");
+            Vector3 centre = world.pieces[target].shape.bounds.center;
+
+            // Drive up to the wall from the lot side: turn the machine to face the store (-Z), as a player would.
+            var exBody = ex.GetComponent<Rigidbody>();
+            ex.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+            exBody.rotation = ex.transform.rotation;
+            Physics.SyncTransforms();
+            // Find a boom/stick pose that puts the bit tip at the piece's height.
+            float bestErr = float.MaxValue, bb = 0f, bs = 0f;
+            for (float boom = ex.boomMin; boom <= ex.boomMax; boom += 4f)
+                for (float stick = ex.stickMin; stick <= ex.stickMax; stick += 5f)
+                {
+                    ex.SetPose(0f, boom, stick, 0f);
+                    float err = Mathf.Abs(ex.WorkPoint.position.y - centre.y);
+                    if (err < bestErr) { bestErr = err; bb = boom; bs = stick; }
+                }
+            ex.SetPose(0f, bb, bs, 0f);
+            Assert.Less(bestErr, 0.4f, "arm can reach the wall piece's height");
+            Vector3 d = centre - ex.WorkPoint.position;
+            d.y = 0f;
+            ex.transform.position += d;
+            ex.GetComponent<Rigidbody>().position = ex.transform.position;
+            Physics.SyncTransforms();
+            yield return new WaitForFixedUpdate();
+
+            int log0 = world.log.Total;
+            int hits0 = ex.Hits;
+            for (float t = 0f; t < 3f; t += Time.deltaTime)
             {
-                Assert.AreEqual(0f, t.position.y, 0.3f, $"{t.name} on the ground");
-                Assert.IsFalse(store.Contains(t.position), $"{t.name} outside the store");
-                Assert.IsFalse(canopy.Contains(t.position), $"{t.name} outside the pump canopy");
+                ex.Command(0f, 0f, 0f, 0f, 0f, 0f, 1f, 0f);
+                yield return null;
             }
-            // The crane can swing its ball over the store.
-            Assert.Less(Vector3.Distance(yard.Crane.transform.position, new Vector3(10f, 0f, -14f)), 30f, "store within the crane's reach");
-            // Container is bigger than the CraneTest one and still low enough to dump over.
-            Assert.GreaterOrEqual(yard.Container.interior.x, 14f);
-            Assert.Less(yard.Container.WallTop, 2.3f);
+            ex.Command(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f);
+            yield return new WaitForSeconds(0.5f);
+            Assert.Greater(ex.Hits - hits0, 3, "breaker strikes land on the wall");
+            Assert.IsTrue(world.pieces[target].removed || world.log.Total > log0, "the store wall took damage");
+        }
+
+        [UnityTest]
+        public IEnumerator ResetReturnsTheExcavatorToItsParkedPose()
+        {
+            var ex = yard.Excavator;
+            Vector3 start = ex.transform.position;
+            Quaternion rot = ex.transform.rotation;
+            float boom0 = ex.BoomAngle;
+            StandAtDoor(ex);
+            yield return null;
+            yield return Tap(Key.E);
+            Assert.AreSame(ex, player.Current);
+            InputSystem.QueueStateEvent(kb, new KeyboardState(Key.W));
+            yield return new WaitForSeconds(2.5f);
+            InputSystem.QueueStateEvent(kb, new KeyboardState());
+            yield return new WaitForSeconds(0.3f);
+            Assert.Greater(Vector3.Distance(start, ex.transform.position), 1f, "excavator drove");
+            yield return Tap(Key.Backspace);
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsNull(player.Current);
+            Assert.AreEqual(0f, Vector3.Distance(start, ex.transform.position), 0.01f, "back in the line");
+            Assert.AreEqual(0f, Quaternion.Angle(rot, ex.transform.rotation), 0.5f);
+            Assert.AreEqual(boom0, ex.BoomAngle, 0.01f);
+            Assert.AreEqual(0, ex.Hits);
+        }
+
+        [UnityTest]
+        public IEnumerator AllFourRigsParkInOneEvenlySpacedLineClearOfTheBuildings()
+        {
+            var rigs = new Component[] { yard.Excavator, yard.Dozer, yard.SkidSteer, yard.Crane };
+            var containerRect = Rect.MinMaxRect(yard.Container.transform.position.x - yard.Container.interior.x * 0.5f - 0.5f,
+                yard.Container.transform.position.z - yard.Container.interior.z * 0.5f - 0.5f,
+                yard.Container.transform.position.x + yard.Container.interior.x * 0.5f + 0.5f,
+                yard.Container.transform.position.z + yard.Container.interior.z * 0.5f + 0.5f);
+
+            // One line: same z and heading, on the ground, evenly spaced along x.
+            float z0 = rigs[0].transform.position.z;
+            for (int i = 0; i < rigs.Length; i++)
+            {
+                var t = rigs[i].transform;
+                Assert.AreEqual(0f, t.position.y, 0.3f, $"{t.name} on the ground");
+                Assert.AreEqual(z0, t.position.z, 0.01f, $"{t.name} in the line");
+                Assert.AreEqual(0f, Vector3.Angle(t.forward, rigs[0].transform.forward), 0.5f, $"{t.name} same heading");
+                if (i > 0) Assert.AreEqual(rigs[1].transform.position.x - rigs[0].transform.position.x, t.position.x - rigs[i - 1].transform.position.x, 0.01f, $"{t.name} even spacing");
+            }
+
+            for (int i = 0; i < rigs.Length; i++)
+            {
+                var fp = Footprint(rigs[i]);
+                Assert.IsFalse(fp.Overlaps(StoreRect), $"{rigs[i].name} outside the store footprint");
+                Assert.IsFalse(fp.Overlaps(CanopyRect), $"{rigs[i].name} outside the pump canopy");
+                Assert.IsFalse(fp.Overlaps(containerRect), $"{rigs[i].name} outside the roll-off container");
+                Assert.GreaterOrEqual(fp.xMin, -25f, $"{rigs[i].name} inside the lot");
+                Assert.LessOrEqual(fp.xMax, 25f);
+                for (int j = i + 1; j < rigs.Length; j++)
+                {
+                    var o = Footprint(rigs[j]);
+                    var grown = Rect.MinMaxRect(fp.xMin - 1f, fp.yMin, fp.xMax + 1f, fp.yMax);
+                    Assert.IsFalse(grown.Overlaps(o), $"{rigs[i].name} and {rigs[j].name} leave at least 1 m between them to drive out");
+                }
+            }
+
+            // No lot furniture (light poles, crates, pallets) stands in a machine's footprint or on its way out.
+            foreach (var rig in rigs)
+            {
+                var fp = Footprint(rig);
+                // The machine's footprint plus a drive-out lane: its own width, 8 m ahead of its origin (booms are overhead).
+                var lane = Rect.MinMaxRect(fp.xMin, rig.transform.position.z, fp.xMax, rig.transform.position.z + 8f);
+                var swept = Rect.MinMaxRect(Mathf.Min(fp.xMin, lane.xMin), fp.yMin, fp.xMax, Mathf.Max(fp.yMax, lane.yMax));
+                for (int i = 0; i < world.pieces.Count; i++)
+                {
+                    var p = world.pieces[i];
+                    if (p == null || p.removed) continue;
+                    var b = p.shape.bounds;
+                    if (b.max.y < 0.3f || b.min.y > 4f) continue; // paving or overhead
+                    var pr = Rect.MinMaxRect(b.min.x, b.min.z, b.max.x, b.max.z);
+                    Assert.IsFalse(swept.Overlaps(pr), $"{rig.name} footprint/road is clear of '{world.Graph.pieces[i].name}' {b}");
+                }
+            }
+
+            // Every machine can drive straight out: nothing solid sits in front of it (the container and the player are clear too).
+            foreach (var rig in rigs)
+            {
+                var fp = Footprint(rig);
+                var ahead = Rect.MinMaxRect(fp.xMin, fp.yMax, fp.xMax, fp.yMax + 4f);
+                Assert.IsFalse(ahead.Overlaps(StoreRect), $"{rig.name} has a free road ahead");
+                Assert.IsFalse(ahead.Overlaps(containerRect));
+            }
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator CraneInTheLineStillReachesTheStore()
+        {
+            var crane = yard.Crane;
+            var fp = Footprint(crane);
+            float dxWall = StoreRect.xMin - crane.transform.position.x;
+            float dxCentre = StoreRect.center.x - crane.transform.position.x;
+            // Boom reach at rest = how far the model extends ahead of the crane's origin.
+            float boomLength = fp.yMax - crane.transform.position.z;
+            Debug.Log($"[StoreYardTests] crane x={crane.transform.position.x:F1} wall {dxWall:F1} m, store centre {dxCentre:F1} m, model ahead of the origin {boomLength:F1} m");
+            Assert.Less(dxWall, 15f, "near wall within the boom's reach");
+
+            // Slew the boom toward the store and check the ball can be dropped over the near wall.
+            var op = crane.GetComponent<CraneOperable>();
+            StandAtDoor(op);
+            yield return null;
+            yield return Tap(Key.E);
+            Assert.AreSame(op, player.Current);
+            InputSystem.QueueStateEvent(kb, new KeyboardState(Key.D));
+            int hits = 0;
+            int log0 = world.log.Total;
+            crane.BallHit += (_, __) => hits++;
+            // A full turn of the slew sweeps the ball through every bearing; record how far east of the crane it gets.
+            float reachedX = float.MinValue;
+            for (int i = 0; i < 600; i++)
+            {
+                yield return null;
+                reachedX = Mathf.Max(reachedX, Vector3.Dot(crane.Ball.position - crane.transform.position, Vector3.right));
+            }
+            InputSystem.QueueStateEvent(kb, new KeyboardState());
+            Debug.Log($"[StoreYardTests] ball reached {reachedX:F1} m east of the crane (near wall {dxWall:F1} m, centre {dxCentre:F1} m)");
+            // The swung ball either reaches the near wall (and strikes it, which also stops the slew) or travels past it.
+            Assert.IsTrue(reachedX > dxWall || hits > 0 || world.log.Total > log0,
+                $"ball reaches the store (x offset {reachedX:F1} vs wall {dxWall:F1}, ball hits {hits})");
+        }
+
+        [UnityTest]
+        public IEnumerator ContainerStaysReachableFromTheStoreSide()
+        {
+            // Container x 6..22 z 6.6..11.4; the store's front is z=-10 so there is a free lane between them.
+            var c = yard.Container.transform.position;
+            Assert.Greater(c.z - yard.Container.interior.z * 0.5f, StoreRect.yMax + 10f, "a lane between the store and the container");
+            Assert.Greater(c.z - yard.Container.interior.z * 0.5f, CanopyRect.yMax + 1f);
             yield return null;
         }
 
         [UnityTest]
         public IEnumerator PlayerWalksToEachRigAndEntersIt()
         {
-            foreach (IOperableRig rig in new IOperableRig[] { yard.SkidSteer, yard.Dozer, yard.Crane.GetComponent<CraneOperable>() })
+            foreach (IOperableRig rig in new IOperableRig[] { yard.SkidSteer, yard.Dozer, yard.Excavator, yard.Crane.GetComponent<CraneOperable>() })
             {
                 StandAtDoor(rig);
                 yield return null;
@@ -163,7 +379,7 @@ namespace DestructionLab.Tests
                 Assert.AreSame(op, player.Current, op.RigName);
                 Vector3 start = rig.transform.position;
                 InputSystem.QueueStateEvent(kb, new KeyboardState(Key.W));
-                yield return new WaitForSeconds(1.5f);
+                yield return new WaitForSeconds(2.5f);
                 InputSystem.QueueStateEvent(kb, new KeyboardState());
                 yield return new WaitForSeconds(0.5f);
                 Assert.Greater(Vector3.Distance(start, rig.transform.position), 1f, $"{op.RigName} drives");

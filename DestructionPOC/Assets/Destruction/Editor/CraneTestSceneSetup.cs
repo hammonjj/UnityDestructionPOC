@@ -100,6 +100,7 @@ namespace DestructionLab.EditorTools
         // Shared with ConvenienceStoreSceneSetup, which uses the same rigs.
         internal const string CraneModel = CraneModelPath;
         internal const string SkidSteerModel = SkidSteerModelPath;
+        internal const string ExcavatorModel = ExcavatorModelPath;
         internal const string DozerModel = DozerModelPath;
 
         internal static GameObject ConfigurePropModel(string modelPath)
