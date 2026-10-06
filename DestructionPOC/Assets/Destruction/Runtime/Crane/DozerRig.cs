@@ -12,9 +12,9 @@ namespace DestructionLab
         [Header("Drive")]
         [Tooltip("Top speed, m/s.")] public float maxSpeed = 3.4f;
         [Tooltip("Reverse top speed as a fraction of forward.")] [Range(0.3f, 1f)] public float reverseScale = 0.9f;
-        [Tooltip("Speed gained per second under power, m/s².")] public float accel = 1.6f;
-        [Tooltip("Speed lost per second when braking or coasting to a stop, m/s².")] public float brake = 4.5f;
-        [Tooltip("Share of track speed used for steering. 0.5 pivots in place at half track speed.")] [Range(0.1f, 1f)] public float turnMix = 0.5f;
+        [Tooltip("Speed gained per second under power, m/s².")] public float accel = 4f;
+        [Tooltip("Speed lost per second when braking or coasting to a stop, m/s².")] public float brake = 12f;
+        [Tooltip("Share of track speed used for steering. 0.5 pivots in place at half track speed.")] [Range(0.1f, 1f)] public float turnMix = 0.75f;
 
         [Header("Blade")]
         [Tooltip("Blade lift speed, deg/s.")] public float liftSpeed = 14f;

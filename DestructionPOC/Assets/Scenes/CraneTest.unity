@@ -158,9 +158,9 @@ MonoBehaviour:
   dozerTuning:
     maxSpeed: 3.4
     reverseScale: 0.9
-    accel: 1.6
-    brake: 4.5
-    turnMix: 0.5
+    accel: 4
+    brake: 12
+    turnMix: 0.75
     liftSpeed: 14
     liftAccel: 45
     liftMaxAngle: 38
@@ -171,10 +171,10 @@ MonoBehaviour:
   wheelLoaderTuning:
     maxSpeed: 5
     reverseScale: 0.8
-    accel: 2.2
-    brake: 5.5
+    accel: 4
+    brake: 12
     maxArticulation: 38
-    articulationSpeed: 30
+    articulationSpeed: 45
     turnMix: 0.55
     liftSpeed: 16
     liftAccel: 50
@@ -203,11 +203,11 @@ MonoBehaviour:
   skidSteerTuning:
     maxSpeed: 3.6
     reverseScale: 0.8
-    accel: 3.4
-    brake: 7
+    accel: 6
+    brake: 14
     maxArticulation: 38
     articulationSpeed: 30
-    turnMix: 0.55
+    turnMix: 0.75
     liftSpeed: 22
     liftAccel: 70
     liftMaxAngle: 66

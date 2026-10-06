@@ -49,10 +49,10 @@ The on-screen panels give the same information. The scenario panel is on the lef
 |---|---|---|
 | Move / look / run / jump | WASD / mouse / Shift / Space | Left stick / right stick / L-stick click / A |
 | Enter or leave the cab | E | X (enter), X or B (leave) |
-| Slew the upper carriage | A / D | Left stick left / right |
-| Raise / lower the boom | W / S | Left stick up / down |
+| Slew the upper carriage | A / D | D-pad left / right |
+| Raise / lower the boom | W / S | D-pad up / down |
 | Pay out (ball down) / reel in (ball up) | F / R | Right trigger / left trigger |
-| Drive / turn the tracks | Arrow keys | D-pad |
+| Drive / turn the tracks | Arrow keys | Left stick |
 | Look around the cab | Mouse | Right stick |
 | Rebuild the warehouse and reset the crane | Backspace | Start |
 | Release / recapture the mouse | Esc / click | |

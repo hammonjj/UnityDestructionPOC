@@ -321,6 +321,7 @@ namespace DestructionLab
             relYaw = 0f;
             pitch = 0f;
             rig.OnEnter();
+            CabGlass.SetOperatorInside(rig as Component, true);
             Input.SetContext(rig.ControlMap(Input));
             if (Overhead) overhead.Snap();
         }
@@ -329,6 +330,7 @@ namespace DestructionLab
         {
             var rig = Current;
             rig.OnExit();
+            CabGlass.SetOperatorInside(rig as Component, false);
             Current = null;
             transitionFrame = Time.frameCount;
             Input.SetContext(null);
@@ -343,6 +345,7 @@ namespace DestructionLab
             if (Current != null)
             {
                 Current.OnExit();
+                CabGlass.SetOperatorInside(Current as Component, false);
                 Current = null;
                 Input.SetContext(null);
                 if (avatar != null) avatar.SetActive(!FirstPerson);

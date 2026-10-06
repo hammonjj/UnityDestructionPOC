@@ -79,8 +79,11 @@ namespace DestructionLab
             Exit.AddBinding("<Gamepad>/buttonWest", groups: Gamepad); // the enter button also leaves
 
             crane = asset.AddActionMap("Crane");
-            CraneSlew = Axis(crane, "Slew", "<Keyboard>/a", "<Keyboard>/d", "<Gamepad>/leftStick/x");
-            CraneBoom = Axis(crane, "Boom", "<Keyboard>/s", "<Keyboard>/w", "<Gamepad>/leftStick/y");
+            // Gamepad: the left stick drives the tracks and the D-pad slews and luffs the boom.
+            CraneSlew = Axis(crane, "Slew", "<Keyboard>/a", "<Keyboard>/d", null);
+            CraneSlew.AddBinding("<Gamepad>/dpad/x", groups: Gamepad);
+            CraneBoom = Axis(crane, "Boom", "<Keyboard>/s", "<Keyboard>/w", null);
+            CraneBoom.AddBinding("<Gamepad>/dpad/y", groups: Gamepad);
             CraneWinch = Axis(crane, "Winch", "<Keyboard>/r", "<Keyboard>/f", null); // + pays out (ball down)
             CraneWinch.AddCompositeBinding("1DAxis", processors: TriggerAxis)
                 .With("Negative", "<Gamepad>/leftTrigger", Gamepad).With("Positive", "<Gamepad>/rightTrigger", Gamepad);
@@ -88,7 +91,7 @@ namespace DestructionLab
             CraneDrive.AddCompositeBinding("2DVector")
                 .With("Up", "<Keyboard>/upArrow", KeyboardMouse).With("Down", "<Keyboard>/downArrow", KeyboardMouse)
                 .With("Left", "<Keyboard>/leftArrow", KeyboardMouse).With("Right", "<Keyboard>/rightArrow", KeyboardMouse);
-            CraneDrive.AddBinding("<Gamepad>/dpad", groups: Gamepad);
+            CraneDrive.AddBinding("<Gamepad>/leftStick", groups: Gamepad);
             CraneLookMouse = crane.AddAction("LookMouse", InputActionType.Value, "<Mouse>/delta", groups: KeyboardMouse, expectedControlLayout: "Vector2");
             CraneLookStick = crane.AddAction("LookStick", InputActionType.Value, "<Gamepad>/rightStick", groups: Gamepad, expectedControlLayout: "Vector2");
 
@@ -264,7 +267,8 @@ namespace DestructionLab
             { "<Gamepad>/buttonSouth", "A" }, { "<Gamepad>/buttonEast", "B" },
             { "<Gamepad>/buttonWest", "X" }, { "<Gamepad>/buttonNorth", "Y" },
             { "<Gamepad>/start", "Start" }, { "<Gamepad>/select", "Back" },
-            { "<Gamepad>/dpad", "D-pad" }, { "<Gamepad>/leftStickPress", "L-stick click" },
+            { "<Gamepad>/dpad", "D-pad" }, { "<Gamepad>/dpad/x", "D-pad ↔" }, { "<Gamepad>/dpad/y", "D-pad ↕" },
+{ "<Gamepad>/leftStickPress", "L-stick click" },
             { "<Gamepad>/rightStickPress", "R-stick click" }, { "<DualShockGamepad>/touchpadButton", "Touchpad" },
             { "<Mouse>/leftButton", "LMB" }, { "<Mouse>/rightButton", "RMB" }, { "<Mouse>/middleButton", "MMB" },
             { "<Mouse>/delta", "Mouse" },

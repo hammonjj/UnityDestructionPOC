@@ -14,12 +14,12 @@ namespace DestructionLab
         [Header("Drive")]
         [Tooltip("Top speed, m/s.")] public float maxSpeed = 5f;
         [Tooltip("Reverse top speed as a fraction of forward.")] [Range(0.3f, 1f)] public float reverseScale = 0.8f;
-        [Tooltip("Speed gained per second under power, m/s².")] public float accel = 2.2f;
-        [Tooltip("Speed lost per second when braking or coasting to a stop, m/s².")] public float brake = 5.5f;
+        [Tooltip("Speed gained per second under power, m/s².")] public float accel = 4f;
+        [Tooltip("Speed lost per second when braking or coasting to a stop, m/s².")] public float brake = 12f;
 
         [Header("Steering")]
         [Tooltip("Wheel loader: largest bend at the central pivot, degrees.")] public float maxArticulation = 38f;
-        [Tooltip("Wheel loader: how fast the chassis bends, deg/s.")] public float articulationSpeed = 30f;
+        [Tooltip("Wheel loader: how fast the chassis bends, deg/s.")] public float articulationSpeed = 45f;
         [Tooltip("Skid steer: share of track speed used for steering. 0.5 turns in place at half track speed.")] [Range(0.1f, 1f)] public float turnMix = 0.55f;
 
         [Header("Lift arms")]
@@ -56,7 +56,7 @@ namespace DestructionLab
 
         public static LoaderTuning SkidSteer() => new LoaderTuning
         {
-            maxSpeed = 3.6f, accel = 3.4f, brake = 7f, turnMix = 0.55f,
+            maxSpeed = 3.6f, accel = 6f, brake = 14f, turnMix = 0.75f,
             liftSpeed = 22f, liftAccel = 70f, liftMaxAngle = 66f,
             tiltSpeed = 55f, tiltAccel = 180f, bucketLocalMin = -55f, bucketLocalMax = 140f, selfLevel = 1f,
             capacityKg = 900f, maxPieceMassKg = 400f, maxPieceSize = 0.9f, dumpAngle = 32f,
