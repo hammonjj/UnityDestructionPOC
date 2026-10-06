@@ -55,6 +55,8 @@ namespace DestructionLab
                                                                  : $"{rig.RigName.ToUpperInvariant()}  ·  {rig.AttachmentName}";
             rig.ControlHints(input, hints);
             hints.Add(ControlHint.Row(input.Keys(input.Exit), "Exit"));
+            hints.Add(ControlHint.Row(input.Keys(input.RespawnVehicle), "Respawn vehicle"));
+            hints.Add(ControlHint.Row(input.Keys(input.RespawnPlayer), "Respawn player"));
             foreach (var h in hints) lastRows.Add($"{h.keys}|{h.label}");
         }
 
@@ -62,17 +64,23 @@ namespace DestructionLab
         {
             if (player == null) return;
             EnsureStyles();
-            DrawLabels();
+            var view = player.GuiRect;
+            GUI.BeginGroup(view);
+            DrawLabels(view);
             Refresh();
-            if (!Visible) return;
+            if (Visible) DrawPanel(view);
+            GUI.EndGroup();
+        }
 
+        void DrawPanel(Rect view)
+        {
             const float keyWidth = 118f, labelWidth = 178f, pad = 10f;
             float line = fontSize + 6f;
             string telemetry = player.Current.Telemetry;
             int telemetryLines = string.IsNullOrEmpty(telemetry) ? 0 : telemetry.Split('\n').Length;
             float h = pad * 2f + line * 2.1f + hints.Count * line + telemetryLines * line + (telemetryLines > 0 ? 4f : 0f);
             float w = keyWidth + labelWidth + pad * 2f;
-            var r = new Rect(margin, Screen.height - h - margin, w, h);
+            var r = new Rect(margin, view.height - h - margin, w, h);
             GUI.DrawTexture(r, bg);
 
             float y = r.y + pad;
@@ -99,7 +107,7 @@ namespace DestructionLab
                 GUI.Label(new Rect(r.x + pad, y + 4f, w - pad * 2f, line * telemetryLines), telemetry, noteStyle);
         }
 
-        void DrawLabels()
+        void DrawLabels(Rect view)
         {
             var cam = player.cam;
             if (cam == null || labels.Count == 0) return;
@@ -109,7 +117,8 @@ namespace DestructionLab
                 Vector3 s = cam.WorldToScreenPoint(l.follow != null ? l.follow.position + l.position : l.position);
                 if (s.z <= 0f) continue;
                 var size = tagStyle.CalcSize(new GUIContent(l.text));
-                var r = new Rect(s.x - size.x * 0.5f - 5f, Screen.height - s.y - size.y * 0.5f - 2f, size.x + 10f, size.y + 4f);
+                // The camera reports whole-screen pixels; the group is offset to this player's viewport.
+                var r = new Rect(s.x - view.x - size.x * 0.5f - 5f, Screen.height - s.y - view.y - size.y * 0.5f - 2f, size.x + 10f, size.y + 4f);
                 GUI.DrawTexture(r, bg);
                 GUI.Label(new Rect(r.x + 5f, r.y + 2f, size.x, size.y), l.text, tagStyle);
             }

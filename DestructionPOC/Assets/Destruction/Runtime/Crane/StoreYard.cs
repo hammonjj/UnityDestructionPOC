@@ -19,7 +19,10 @@ namespace DestructionLab
     /// Controls. The lab's keys and the player's keys overlap, so they are split by context:
     ///   On foot  WASD move, Shift run, Space jump, E climb into a machine, V first-person / overhead view,
     ///            R or Backspace reset everything, T trigger (blow the store corner), 1-4 tools, LMB use tool,
-    ///            P pause (Space is jump here), . step, [ ] slow motion, F1/F2 overlays, H hide stats.
+    ///            P pause (Space is jump here), . step, [ ] slow motion. X respawns the nearest machine, Q respawns you.
+    ///            The lab's debug HUD and diagnostic overlays are not built here.
+    ///   Two players split the screen side by side (see <see cref="GameSession"/>): one keyboard + mouse, one gamepad each.
+    ///            The lab keys and mouse tools belong to the keyboard.
     ///   In a rig The rig's own keys only (crane: A/D slew, W/S boom, R/F ball, arrows drive; loaders: W/S, A/D, R/F,
     ///            Z/C). Every lab shortcut is ignored in a cab, so R winches instead of resetting. E exits;
     ///            Backspace still resets (it is bound to nothing else). The mouse tools stay live, except in the excavator,
@@ -64,7 +67,10 @@ namespace DestructionLab
         public DozerRig Dozer { get; private set; }
         public ExcavatorRig Excavator { get; private set; }
         public CollectionContainer Container { get; private set; }
+        /// <summary>The first player.</summary>
         public CranePlayer Player { get; private set; }
+        /// <summary>Every player, in join order (one or two).</summary>
+        public System.Collections.Generic.List<CranePlayer> Players { get; } = new System.Collections.Generic.List<CranePlayer>();
 
         Collider ground;
 
@@ -88,14 +94,15 @@ namespace DestructionLab
             if (skidSteerModel != null) BuildSkidSteer();
             if (dozerModel != null) BuildDozer();
             if (excavatorModel != null) BuildExcavator();
-            BuildPlayer(cam, overhead);
+            GameSession.Prune();
+            BuildPlayers(cam, overhead, GameSession.PlayerCount);
 
             var lab2 = lab.Controller;
             lab2.pauseKey = Key.P;                 // Space jumps
             lab2.scenarioSwitching = false;
-            lab2.keysBlocked = () => Player != null && Player.InCab;
+            lab2.keysBlocked = () => Players.Exists(p => p.InCab);
             // The excavator's breaker / jaws run on the left mouse button, so a click must not also fire the destroy tool.
-            lab2.clickBlocked = () => Player != null && Excavator != null && Player.Current == (IOperableRig)Excavator;
+            lab2.clickBlocked = () => Excavator != null && Players.Exists(p => p.Current == (IOperableRig)Excavator);
             lab2.onResetRequested = ResetAll;
             Ledger.Reset(World, SkidSteer != null ? SkidSteer.tuning.maxPieceMassKg : 0f);
             Ledger.ResetBuilding(World);
@@ -158,26 +165,66 @@ namespace DestructionLab
             Excavator.Build(Instantiate(excavatorModel), excavatorAttachment);
         }
 
-        void BuildPlayer(Camera cam, CraneOverheadCamera overhead)
+        /// <summary>One player per joined slot (one on every device when nobody joined). Two players split the screen
+        /// side by side, each with their own camera, input devices and HUD.</summary>
+        void BuildPlayers(Camera mainCam, CraneOverheadCamera mainOverhead, int count)
         {
-            var playerGo = new GameObject("Player", typeof(CharacterController));
-            playerGo.transform.SetPositionAndRotation(playerPosition, Quaternion.Euler(0f, playerYaw, 0f));
-            Player = playerGo.AddComponent<CranePlayer>();
-            Player.crane = Crane;
-            Player.rigs.Add(Crane.GetComponent<CraneOperable>());
-            if (SkidSteer != null) Player.rigs.Add(SkidSteer);
-            if (Dozer != null) Player.rigs.Add(Dozer);
-            if (Excavator != null) Player.rigs.Add(Excavator);
-            Player.cam = cam;
-            Player.world = World;
-            Player.onReset = ResetAll;
+            for (int i = 0; i < count; i++)
+            {
+                Camera cam = mainCam;
+                CraneOverheadCamera overhead = mainOverhead;
+                if (i > 0)
+                {
+                    cam = CloneCamera(mainCam);
+                    overhead = cam.GetComponent<CraneOverheadCamera>();
+                }
+                if (count > 1) cam.rect = new Rect(i / (float)count, 0f, 1f / count, 1f);
+                BuildPlayer(i, count, cam, overhead);
+            }
+            Player = Players[0];
+        }
 
-            var focus = new GameObject("Camera Focus").transform;
-            focus.position = playerPosition;
+        /// <summary>A second view of the same scene: same render settings, no second audio listener, and not tagged
+        /// MainCamera so the first player's camera stays <see cref="Camera.main"/>.</summary>
+        static Camera CloneCamera(Camera source)
+        {
+            var go = Instantiate(source.gameObject, source.transform.parent);
+            go.name = "Player 2 Camera";
+            go.tag = "Untagged";
+            foreach (var l in go.GetComponentsInChildren<AudioListener>()) Destroy(l);
+            // Begin() destroys the lab's orbit camera, but only at the end of the frame, so the copy still carries it.
+            foreach (var l in go.GetComponents<LabCamera>()) Destroy(l);
+            var cam = go.GetComponent<Camera>();
+            cam.depth = source.depth + 1;
+            return cam;
+        }
+
+        void BuildPlayer(int index, int count, Camera cam, CraneOverheadCamera overhead)
+        {
+            // Inactive until configured: the player reads its devices when it wakes.
+            var playerGo = new GameObject(count > 1 ? $"Player {index + 1}" : "Player", typeof(CharacterController));
+            playerGo.SetActive(false);
+            Vector3 start = playerPosition + Vector3.right * (index * 2.5f);
+            playerGo.transform.SetPositionAndRotation(start, Quaternion.Euler(0f, playerYaw, 0f));
+            var player = playerGo.AddComponent<CranePlayer>();
+            player.devices = GameSession.DevicesFor(index);
+            player.playerIndex = index;
+            player.allowViewToggle = count == 1;
+            player.crane = Crane;
+            player.rigs.Add(Crane.GetComponent<CraneOperable>());
+            if (SkidSteer != null) player.rigs.Add(SkidSteer);
+            if (Dozer != null) player.rigs.Add(Dozer);
+            if (Excavator != null) player.rigs.Add(Excavator);
+            player.cam = cam;
+            player.world = World;
+            player.onReset = ResetAll;
+
+            var focus = new GameObject(count > 1 ? $"Camera Focus {index + 1}" : "Camera Focus").transform;
+            focus.position = start;
             overhead.target = focus;
-            Player.overhead = overhead;
-            Player.cameraFocus = focus;
-            Player.avatar = BuildAvatar(playerGo.transform);
+            player.overhead = overhead;
+            player.cameraFocus = focus;
+            player.avatar = BuildAvatar(playerGo.transform, index);
 
             var panel = playerGo.AddComponent<RigControlsPanel>();
             panel.labels.Add(new RigControlsPanel.WorldLabel { position = containerPosition + Vector3.up * 3f, text = "ROLL-OFF CONTAINER  ·  rubble goes here" });
@@ -191,16 +238,19 @@ namespace DestructionLab
 
             var hud = playerGo.AddComponent<LoaderHud>();
             hud.ledger = Ledger;
+            playerGo.AddComponent<RigGaugeHud>();
 
             // The 25 t ball would otherwise shove the player's capsule around.
             Physics.IgnoreCollision(Crane.Ball.GetComponent<Collider>(), playerGo.GetComponent<CharacterController>());
+            playerGo.SetActive(true);
+            Players.Add(player);
         }
 
-        /// <summary>Scene reset (R on foot, Backspace anywhere): the player steps out of any rig, every machine returns
-        /// to its start pose, the store is rebuilt and the gauge restarts at 0 % from the rebuilt building.</summary>
+        /// <summary>Scene reset (Backspace / Start): every player steps out of any rig back to their spawn, every
+        /// machine returns to its start pose, the store is rebuilt and the gauge restarts at 0 % from the rebuilt building.</summary>
         public void ResetAll()
         {
-            Player.ForceExit(playerPosition, playerYaw);
+            foreach (var p in Players) p.ForceExit(p.spawnPosition, p.spawnYaw);
             // Loaders let go of any load before the world is rebuilt, so no body is left held.
             if (SkidSteer != null) SkidSteer.ResetPose();
             if (Dozer != null) Dozer.ResetPose();
@@ -210,11 +260,13 @@ namespace DestructionLab
             Ledger.Reset(World, SkidSteer != null ? SkidSteer.tuning.maxPieceMassKg : 0f);
             Ledger.ResetBuilding(World);
             Crane.ResetPose();
-            Player.SnapCamera();
+            foreach (var p in Players) p.SnapCamera();
         }
 
-        // The overhead view needs a body for the player: a capsule with a nose shows facing.
-        static GameObject BuildAvatar(Transform parent)
+        static readonly Color[] AvatarColors = { new Color(0.95f, 0.35f, 0.2f), new Color(0.2f, 0.55f, 0.95f) };
+
+        // The overhead view needs a body for the player: a capsule with a nose shows facing. Each player has a colour.
+        static GameObject BuildAvatar(Transform parent, int index)
         {
             var root = new GameObject("Avatar");
             root.transform.SetParent(parent, false);
@@ -228,7 +280,7 @@ namespace DestructionLab
             nose.transform.localScale = new Vector3(0.22f, 0.22f, 0.3f);
             foreach (var r in root.GetComponentsInChildren<Renderer>())
             {
-                r.material.color = new Color(0.95f, 0.35f, 0.2f);
+                r.material.color = AvatarColors[index % AvatarColors.Length];
                 Destroy(r.GetComponent<Collider>());
             }
             return root;

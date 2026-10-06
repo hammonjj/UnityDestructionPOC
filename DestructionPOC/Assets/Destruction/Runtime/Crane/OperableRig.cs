@@ -44,6 +44,8 @@ namespace DestructionLab
         void OnEnter();
         /// <summary>Stop powered motion and hold the current pose.</summary>
         void OnExit();
+        /// <summary>Put the machine back at its start pose (stuck or flipped). Safe whether or not it is occupied.</summary>
+        void Respawn();
         /// <summary>Read this frame's input. Only called on the occupied rig.</summary>
         void Operate(CraneTestInput input);
         /// <summary>Places to put the player on exit, best first. The player takes the first unblocked one.</summary>

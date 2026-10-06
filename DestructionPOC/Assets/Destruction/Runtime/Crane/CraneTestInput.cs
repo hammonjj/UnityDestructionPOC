@@ -31,7 +31,7 @@ namespace DestructionLab
         public readonly InputActionMap global, onFoot, vehicle, crane, excavator, loader;
 
         // Global
-        public readonly InputAction Reset, ToggleView;
+        public readonly InputAction Reset, ToggleView, RespawnVehicle, RespawnPlayer;
         // On foot
         public readonly InputAction Move, Run, Jump, Interact, LookMouse, LookStick;
         // Any rig
@@ -46,12 +46,21 @@ namespace DestructionLab
         /// <summary>True when the most recent input came from a gamepad. Drives which hints the HUD shows.</summary>
         public bool UsingGamepad { get; private set; }
 
-        public CraneTestInput()
+        readonly InputDevice[] devices;
+
+        /// <summary>All devices (single player, the CraneTest default) or only the given ones (split screen: each player
+        /// owns a keyboard + mouse or one gamepad, so one player's input never reaches another).</summary>
+        public CraneTestInput(InputDevice[] onlyDevices = null)
         {
             InputSystem.RegisterBindingComposite<WithoutModifierComposite>(WithoutModifierComposite.Name);
 
             asset = ScriptableObject.CreateInstance<InputActionAsset>();
             asset.name = "CraneTest Controls (runtime)";
+            if (onlyDevices != null && onlyDevices.Length > 0)
+            {
+                devices = onlyDevices;
+                asset.devices = new UnityEngine.InputSystem.Utilities.ReadOnlyArray<InputDevice>(onlyDevices);
+            }
             asset.AddControlScheme(KeyboardMouse).WithRequiredDevice<Keyboard>().WithOptionalDevice<Mouse>();
             asset.AddControlScheme(Gamepad).WithRequiredDevice<UnityEngine.InputSystem.Gamepad>();
 
@@ -60,6 +69,9 @@ namespace DestructionLab
             // Camera view: V, or the PlayStation touchpad click (the big button at the top). Other pads use R-stick click.
             ToggleView = Button(global, "ToggleView", "<Keyboard>/v", "<DualShockGamepad>/touchpadButton");
             ToggleView.AddBinding("<Gamepad>/rightStickPress", groups: Gamepad);
+            // Stuck? X puts the machine you are in (or the nearest one) back at its start; Q puts you back at your spawn.
+            RespawnVehicle = Button(global, "RespawnVehicle", "<Keyboard>/x", "<Gamepad>/buttonNorth");
+            RespawnPlayer = Button(global, "RespawnPlayer", "<Keyboard>/q", "<Gamepad>/select");
 
             onFoot = asset.AddActionMap("OnFoot");
             Move = onFoot.AddAction("Move", InputActionType.Value, expectedControlLayout: "Vector2");
@@ -128,7 +140,8 @@ namespace DestructionLab
             LoaderLift = Axis(loader, "Lift", "<Keyboard>/f", "<Keyboard>/r", "<Gamepad>/rightStick/y");
             LoaderTilt = Axis(loader, "Tilt", "<Keyboard>/z", "<Keyboard>/c", "<Gamepad>/rightStick/x");
 
-            UsingGamepad = UnityEngine.InputSystem.Gamepad.current != null && Keyboard.current == null;
+            UsingGamepad = devices != null ? !Has<Keyboard>() && Has<UnityEngine.InputSystem.Gamepad>()
+                                           : UnityEngine.InputSystem.Gamepad.current != null && Keyboard.current == null;
             InputSystem.onActionChange += OnActionChange;
             global.Enable();
             SetContext(null);
@@ -177,15 +190,25 @@ namespace DestructionLab
         /// <summary>Also switch hints on raw device activity that no enabled action listens to (e.g. any key).</summary>
         public void PollDevice()
         {
-            var kb = Keyboard.current;
-            var mouse = Mouse.current;
-            var pad = UnityEngine.InputSystem.Gamepad.current;
+            var kb = devices != null ? Find<Keyboard>() : Keyboard.current;
+            var mouse = devices != null ? Find<Mouse>() : Mouse.current;
+            var pad = devices != null ? Find<UnityEngine.InputSystem.Gamepad>() : UnityEngine.InputSystem.Gamepad.current;
             if ((kb != null && kb.anyKey.wasPressedThisFrame) ||
                 (mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame)))
                 UsingGamepad = false;
             else if (pad != null && PadActive(pad))
                 UsingGamepad = true;
         }
+
+        T Find<T>() where T : InputDevice
+        {
+            if (devices != null)
+                foreach (var d in devices)
+                    if (d is T t && t.added) return t;
+            return null;
+        }
+
+        bool Has<T>() where T : InputDevice => Find<T>() != null;
 
         static bool PadActive(UnityEngine.InputSystem.Gamepad pad)
         {

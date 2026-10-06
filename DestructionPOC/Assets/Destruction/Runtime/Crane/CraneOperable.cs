@@ -43,6 +43,11 @@ namespace DestructionLab
             Crane.SetOperatorInside(false);
         }
 
+        public void Respawn() => Crane.ResetPose();
+
+        /// <summary>Degrees the carriage (cab) is turned right of the tracks.</summary>
+        public float UpperYaw => Crane.SlewAngle;
+
         public void Operate(CraneTestInput input)
         {
             Crane.Slew(input.CraneSlew.ReadValue<float>());

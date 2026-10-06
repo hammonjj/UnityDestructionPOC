@@ -169,6 +169,7 @@ namespace DestructionLab
 
             var loaderHud = playerGo.AddComponent<LoaderHud>();
             loaderHud.ledger = Ledger;
+            playerGo.AddComponent<RigGaugeHud>();
             if (Container != null)
             {
                 panel.labels.Add(new RigControlsPanel.WorldLabel { position = loaderSite.container + Vector3.up * 3.2f, text = "COLLECTION CONTAINER" });

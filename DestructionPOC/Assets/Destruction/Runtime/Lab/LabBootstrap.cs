@@ -66,13 +66,17 @@ namespace DestructionLab
 
             var labGo = new GameObject("Lab");
             Controller = labGo.AddComponent<LabController>();
-            var overlay = new GameObject("Diagnostics Overlay").AddComponent<DiagnosticsOverlay>();
-            var hud = labGo.AddComponent<LabHud>();
-
             Controller.Init(World, labCam);
-            overlay.Init(World, Controller);
-            hud.compactLayout = yard != null;
-            hud.Init(Controller, World);
+            // The lab's debug view (stress lines, body markers, tint, stats panel) is for the plain lab; the game
+            // scene with a drivable yard shows none of it.
+            if (yard == null)
+            {
+                var overlay = new GameObject("Diagnostics Overlay").AddComponent<DiagnosticsOverlay>();
+                var hud = labGo.AddComponent<LabHud>();
+                overlay.Init(World, Controller);
+                hud.Init(Controller, World);
+            }
+            else Controller.DiagnosticsVisible = false;
             int start = startScenario;
             if (!string.IsNullOrEmpty(startScenarioId))
             {

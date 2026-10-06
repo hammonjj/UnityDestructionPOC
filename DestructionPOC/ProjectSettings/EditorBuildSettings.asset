@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Scenes/Title.unity
+    guid: 84547e99e45e44d65b0424211501a710
+  - enabled: 1
     path: Assets/Scenes/DestructionLab.unity
     guid: 849637019482c40898a656cd0bd68142
   - enabled: 1

@@ -1004,6 +1004,8 @@ namespace DestructionLab
 
         // ------------------------------------------------------------------ reset
 
+        public void Respawn() => ResetPose();
+
         public void ResetPose()
         {
             if (grip != null) Destroy(grip);

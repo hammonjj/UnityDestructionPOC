@@ -30,6 +30,82 @@ namespace DestructionLab
         public float interactRange = 3.2f;
         public System.Action onReset;
 
+        [Header("Split screen")]
+        [Tooltip("Devices this player owns. Empty = every device (single player). Set before the component is enabled.")]
+        public InputDevice[] devices;
+        public int playerIndex;
+        [Tooltip("Where Respawn Player puts this player. Defaults to the start position.")]
+        public Vector3 spawnPosition;
+        public float spawnYaw;
+        [Tooltip("A machine can be respawned from this far away when the player is on foot.")]
+        public float respawnRange = 14f;
+        [Tooltip("Off in split screen: the first-person view locks the one mouse.")]
+        public bool allowViewToggle = true;
+
+        /// <summary>Every active player, so two players cannot climb into the same machine.</summary>
+        public static readonly List<CranePlayer> All = new List<CranePlayer>();
+
+        /// <summary>This player's pixel rectangle in IMGUI coordinates (origin top-left). The whole screen without a camera.</summary>
+        public Rect GuiRect
+        {
+            get
+            {
+                if (cam == null) return new Rect(0f, 0f, Screen.width, Screen.height);
+                Rect r = cam.rect;
+                return new Rect(r.x * Screen.width, (1f - r.y - r.height) * Screen.height, r.width * Screen.width, r.height * Screen.height);
+            }
+        }
+
+        /// <summary>The machine a respawn would act on: the one occupied, else the nearest within <see cref="respawnRange"/>.</summary>
+        public IOperableRig RespawnTarget
+        {
+            get
+            {
+                if (Current != null) return Current;
+                IOperableRig best = null;
+                float bestD = respawnRange;
+                foreach (var mb in rigs)
+                {
+                    if (!(mb is IOperableRig r) || mb == null || !mb.isActiveAndEnabled || OccupiedByOther(r)) continue;
+                    Vector3 d = r.DoorPosition - transform.position;
+                    d.y = 0f;
+                    if (d.magnitude < bestD)
+                    {
+                        bestD = d.magnitude;
+                        best = r;
+                    }
+                }
+                return best;
+            }
+        }
+
+        bool OccupiedByOther(IOperableRig rig)
+        {
+            foreach (var p in All)
+                if (p != this && p.Current == rig) return true;
+            return false;
+        }
+
+        /// <summary>Put the machine you are in (or the nearest one) back at its start pose.</summary>
+        public void RespawnVehicle()
+        {
+            var rig = RespawnTarget;
+            if (rig == null) return;
+            rig.Respawn();
+            if (Current != null)
+            {
+                // The seat jumped; do not smooth the camera across the map.
+                if (Overhead) overhead.Snap();
+            }
+        }
+
+        /// <summary>Stand this player back at their spawn point, leaving any machine.</summary>
+        public void RespawnPlayer()
+        {
+            ForceExit(spawnPosition, spawnYaw);
+            SnapCamera();
+        }
+
         [Header("Overhead camera (CraneTest). Leave 'overhead' empty for the first-person view.")]
         [Tooltip("Fixed-angle camera. When set, movement is camera-relative, mouse look is off and the cursor stays free.")]
         public CraneOverheadCamera overhead;
@@ -61,10 +137,21 @@ namespace DestructionLab
             cc.radius = 0.35f;
             cc.center = new Vector3(0f, 0.9f, 0f);
             cc.stepOffset = 0.4f;
-            Input = new CraneTestInput();
+            Input = new CraneTestInput(devices);
+            spawnPosition = transform.position;
+            spawnYaw = transform.eulerAngles.y;
         }
 
-        void OnDestroy() => Input?.Dispose();
+        void OnEnable()
+        {
+            if (!All.Contains(this)) All.Add(this);
+        }
+
+        void OnDestroy()
+        {
+            All.Remove(this);
+            Input?.Dispose();
+        }
 
         void Start()
         {
@@ -130,7 +217,7 @@ namespace DestructionLab
                 float bestD = interactRange;
                 foreach (var mb in rigs)
                 {
-                    if (!(mb is IOperableRig r) || mb == null || !mb.isActiveAndEnabled) continue;
+                    if (!(mb is IOperableRig r) || mb == null || !mb.isActiveAndEnabled || OccupiedByOther(r)) continue;
                     Vector3 d = r.DoorPosition - transform.position;
                     d.y = 0f;
                     if (d.magnitude < bestD)
@@ -149,7 +236,7 @@ namespace DestructionLab
             var mouse = Mouse.current;
             Input.PollDevice();
 
-            if (overhead != null && Input.ToggleView.WasPressedThisFrame()) ToggleView();
+            if (allowViewToggle && overhead != null && Input.ToggleView.WasPressedThisFrame()) ToggleView();
 
             if (!Overhead)
             {
@@ -161,6 +248,12 @@ namespace DestructionLab
                 onReset?.Invoke();
                 return;
             }
+            if (Input.RespawnPlayer.WasPressedThisFrame())
+            {
+                RespawnPlayer();
+                return;
+            }
+            if (Input.RespawnVehicle.WasPressedThisFrame()) RespawnVehicle();
 
             if (!Overhead) Look();
 
@@ -305,6 +398,7 @@ namespace DestructionLab
 
         void OnDisable()
         {
+            All.Remove(this);
             if (hitStopUntil > 0f) Time.timeScale = 1f;
             if (crane != null) crane.BallHit -= OnBallHit;
         }
@@ -413,15 +507,17 @@ namespace DestructionLab
                     ? $"<b>Press {interact} to climb into the {Label(near)}</b>"
                     : "Walk to a machine's cab steps (left side) to climb in: the crane, an excavator in the yard to the south, or a loader in the yard to the east";
             }
-            text += $"\nReset {Input.Keys(Input.Reset, pad)}" + (Overhead ? "" : "    Mouse unlock Esc");
-            if (overhead != null) text += $"    View {Input.Keys(Input.ToggleView, pad)} ({(FirstPerson ? "first person" : "overhead")})";
-            if (world != null)
-                text += $"\nPieces {world.stats.pieces}   moving bodies {world.stats.dynamicBodies}   fragments {world.LiveFragments}   broken joints logged {world.log.Total}";
+            text += $"\nRespawn vehicle {Input.Keys(Input.RespawnVehicle, pad)}    Respawn player {Input.Keys(Input.RespawnPlayer, pad)}";
+            text += $"    Reset all {Input.Keys(Input.Reset, pad)}" + (Overhead ? "" : "    Mouse unlock Esc");
+            if (overhead != null && allowViewToggle) text += $"    View {Input.Keys(Input.ToggleView, pad)} ({(FirstPerson ? "first person" : "overhead")})";
 
-            var r = new Rect(16f, 12f, 900f, 260f);
+            var view = GuiRect;
+            GUI.BeginGroup(view);
+            var r = new Rect(16f, 12f, Mathf.Min(900f, view.width - 32f), 260f);
             GUI.Label(new Rect(r.x + 1f, r.y + 1f, r.width, r.height), text, shadow);
             GUI.Label(r, text, style);
-            if (!Overhead) GUI.Label(new Rect(Screen.width * 0.5f - 4f, Screen.height * 0.5f - 4f, 8f, 8f), "·", style);
+            if (!Overhead) GUI.Label(new Rect(view.width * 0.5f - 4f, view.height * 0.5f - 4f, 8f, 8f), "·", style);
+            GUI.EndGroup();
         }
 
         static string Label(IOperableRig r) =>

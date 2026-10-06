@@ -21,6 +21,7 @@ namespace DestructionLab
         [Range(10, 24)] public int fontSize = 13;
 
         CranePlayer player;
+        Rect view;
         GUIStyle label, small, gaugeBig;
         Texture2D bg, fill;
 
@@ -49,16 +50,20 @@ namespace DestructionLab
         {
             if (ledger == null) return;
             EnsureStyles();
-            if (ledger.HasBuilding)
-            {
-                DrawBuildingGauge();
-                return;
-            }
+            view = player != null ? player.GuiRect : new Rect(0f, 0f, Screen.width, Screen.height);
+            GUI.BeginGroup(view);
+            if (ledger.HasBuilding) DrawBuildingGauge();
+            else DrawCleanupCard();
+            GUI.EndGroup();
+        }
+
+        void DrawCleanupCard()
+        {
             const float w = 280f, bar = 10f;
             float line = fontSize + 6f;
             bool loader = BucketText != null;
             float h = 12f + line + bar + (ledger.OversizedPieces > 0 ? line : 0f) + (loader ? line + bar + 10f : 0f);
-            var r = new Rect(Screen.width - w - margin, margin, w, h);
+            var r = new Rect(view.width - w - margin, margin, w, h);
             GUI.DrawTexture(r, bg);
             float y = r.y + 6f;
             float x = r.x + 10f, iw = w - 20f;
@@ -84,12 +89,12 @@ namespace DestructionLab
 
         void DrawBuildingGauge()
         {
-            float scale = Mathf.Clamp(Screen.height / 1080f, 0.8f, 1.6f);
-            float w = 460f * scale, line = (fontSize + 6f) * scale, bar = 22f * scale, big = (fontSize + 17f) * scale;
+            float scale = Mathf.Clamp(view.height / 1080f, 0.8f, 1.6f);
+            float w = Mathf.Min(460f * scale, view.width - 2f * margin), line = (fontSize + 6f) * scale, bar = 22f * scale, big = (fontSize + 17f) * scale;
             bool loader = BucketText != null;
             float head = big * 1.25f;
             float h = 16f * scale + head + bar + line + (loader ? line + bar * 0.5f + 12f * scale : 0f);
-            var r = new Rect((Screen.width - w) * 0.5f, margin + gaugeTop, w, h);
+            var r = new Rect((view.width - w) * 0.5f, margin + gaugeTop, w, h);
             GUI.DrawTexture(r, bg);
             float x = r.x + 12f * scale, iw = w - 24f * scale, y = r.y + 7f * scale;
 

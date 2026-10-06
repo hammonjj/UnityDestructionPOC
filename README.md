@@ -41,6 +41,18 @@ Nothing else is needed. All geometry is procedural boxes, with no art, packages 
 
 The on-screen panels give the same information. The scenario panel is on the left, and tools, playback and tuning are on the right. Help is bottom-left. Stats, the selected connection and the break log are bottom-right.
 
+## Game flow: title, lobby, split screen
+
+`Assets/Scenes/Title.unity` (menu **Destruction Lab → Rebuild Title Scene**) is first in the build. **Start** opens a lobby where up to two players join: any key (keyboard + mouse) or **A** (a gamepad). **Enter** / **Start** begins; **Esc** / **B** goes back. The game scene, `ConvenienceStore.unity`, then spawns one player per slot. Two players split the screen side by side, each with their own camera, HUD and devices: a keyboard + mouse or one gamepad each. Two players cannot climb into the same machine. Opening the scene directly (or the tests) gives one player on every device, as before.
+
+| Action | Keyboard + mouse | Gamepad |
+|---|---|---|
+| Respawn the machine you are in (on foot: the nearest one within 14 m) | X | Y |
+| Respawn yourself at your spawn point (leaves any machine) | Q | Back |
+| Reset everything | Backspace | Start |
+
+The lab's debug HUD and diagnostic overlays are not built in the game scene (the plain lab keeps them). While driving, a dial bottom-right shows the bucket tilt against the horizon (skid steer, wheel loader; the pour angle is marked) or, on machines whose upper body turns on the tracks (wrecking crane, excavator), where the tracks point relative to the cab, with an arrow for drive-forward.
+
 ## Crane test scene
 
 `Assets/Scenes/CraneTest.unity` (menu **Destruction Lab → Build Crane Test Scene** rebuilds it) puts the wrecking crane and the brick warehouse on an open plane, with a first-person player. Walk to the crane's cab steps (left side of the machine) and press **E** / **X** to climb in. The crane is a prop, not a structure: its ball is a free 25 t rigid body on a rope limit, and it damages the warehouse through the normal contact path. Impacts need roughly 6 m/s at this ball mass to break brick, so swing it rather than nudge it.

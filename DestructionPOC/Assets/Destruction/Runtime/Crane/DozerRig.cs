@@ -395,6 +395,14 @@ namespace DestructionLab
 
         // ------------------------------------------------------------------ reset
 
+        /// <summary>Back to the start pose, keeping the parking hold if nobody is driving.</summary>
+        public void Respawn()
+        {
+            bool parked = Parked;
+            ResetPose();
+            Parked = parked;
+        }
+
         public void ResetPose()
         {
             StopPowered();
