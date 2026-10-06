@@ -6,16 +6,22 @@ namespace DestructionLab
     /// Two small bars in the top-right corner of CraneTest: cleanup progress (mass accepted by the container against
     /// the staged loader debris) always, and the occupied loader's bucket load against its capacity while operating.
     /// Kept clear of the working area and of the controls card (bottom-left).
+    ///
+    /// When the ledger tracks a whole building (ConvenienceStore) the cleanup block becomes a large gauge at the top
+    /// centre: the percentage of the building's mass delivered to the container, as a wide bar plus big percentage
+    /// text. The bucket bar then sits below it. The lab's tool panel owns the top-right corner in that scene.
     /// </summary>
     [RequireComponent(typeof(CranePlayer))]
     public sealed class LoaderHud : MonoBehaviour
     {
         public CleanupLedger ledger;
         public float margin = 14f;
+        [Tooltip("Whole-building gauge only: distance below the top edge, to clear the player's hint text (top-left).")]
+        public float gaugeTop = 78f;
         [Range(10, 24)] public int fontSize = 13;
 
         CranePlayer player;
-        GUIStyle label, small;
+        GUIStyle label, small, gaugeBig;
         Texture2D bg, fill;
 
         /// <summary>Text last drawn, for tests.</summary>
@@ -24,11 +30,16 @@ namespace DestructionLab
 
         void Awake() => player = GetComponent<CranePlayer>();
 
+        /// <summary>Percentage text with one decimal, so small early progress is visible. Never rounds up to 100.</summary>
+        public static string Percent(float fraction) => (Mathf.Floor(Mathf.Clamp01(fraction) * 1000f) / 10f).ToString("0.0") + "%";
+
         public static string Tonnes(float kg) => kg >= 1000f ? $"{kg / 1000f:0.0} t" : $"{kg:0} kg";
 
         void Update()
         {
-            CleanupText = ledger == null ? null : $"CLEANUP  {Tonnes(ledger.ClearedMassKg)} / {Tonnes(ledger.StagedMassKg)}  ({Mathf.RoundToInt(ledger.Progress * 100f)}%)";
+            CleanupText = ledger == null ? null
+                : ledger.HasBuilding ? $"RUBBLE CLEARED  {Percent(ledger.BuildingProgress)}  ({Tonnes(ledger.BuildingClearedKg)} / {Tonnes(ledger.BuildingMassKg)})"
+                : $"CLEANUP  {Tonnes(ledger.ClearedMassKg)} / {Tonnes(ledger.StagedMassKg)}  ({Mathf.RoundToInt(ledger.Progress * 100f)}%)";
             var loader = player != null ? player.Current as LoaderRig : null;
             BucketText = loader == null ? null
                 : $"BUCKET  {loader.Load.MassKg:N0} / {loader.Load.CapacityKg:N0} kg" + (loader.Load.Spilling ? "  pouring" : loader.Load.Fill >= 0.98f ? "  full" : "");
@@ -38,6 +49,11 @@ namespace DestructionLab
         {
             if (ledger == null) return;
             EnsureStyles();
+            if (ledger.HasBuilding)
+            {
+                DrawBuildingGauge();
+                return;
+            }
             const float w = 280f, bar = 10f;
             float line = fontSize + 6f;
             bool loader = BucketText != null;
@@ -66,6 +82,39 @@ namespace DestructionLab
             }
         }
 
+        void DrawBuildingGauge()
+        {
+            float scale = Mathf.Clamp(Screen.height / 1080f, 0.8f, 1.6f);
+            float w = 460f * scale, line = (fontSize + 6f) * scale, bar = 22f * scale, big = (fontSize + 17f) * scale;
+            bool loader = BucketText != null;
+            float head = big * 1.25f;
+            float h = 16f * scale + head + bar + line + (loader ? line + bar * 0.5f + 12f * scale : 0f);
+            var r = new Rect((Screen.width - w) * 0.5f, margin + gaugeTop, w, h);
+            GUI.DrawTexture(r, bg);
+            float x = r.x + 12f * scale, iw = w - 24f * scale, y = r.y + 7f * scale;
+
+            int old = label.fontSize;
+            label.fontSize = Mathf.RoundToInt(fontSize * scale);
+            GUI.Label(new Rect(x, y + (head - line) * 0.5f, iw, line), "RUBBLE CLEARED", label);
+            gaugeBig.fontSize = Mathf.RoundToInt(big);
+            GUI.Label(new Rect(x, y, iw, head), Percent(ledger.BuildingProgress), gaugeBig);
+            y += head + 2f * scale;
+            Bar(new Rect(x, y, iw, bar), ledger.BuildingProgress, new Color(0.35f, 0.8f, 0.45f));
+            y += bar + 6f * scale;
+            small.fontSize = Mathf.RoundToInt((fontSize - 1) * scale);
+            GUI.Label(new Rect(x, y, iw, line), $"{Tonnes(ledger.BuildingClearedKg)} of {Tonnes(ledger.BuildingMassKg)} building mass in the roll-off container", small);
+            y += line;
+            if (loader)
+            {
+                var l = (LoaderRig)player.Current;
+                GUI.Label(new Rect(x, y + 4f * scale, iw, line), BucketText, label);
+                y += line + 4f * scale;
+                Bar(new Rect(x, y, iw, bar * 0.5f), l.Load.Fill, l.Load.Fill >= 0.98f ? new Color(0.95f, 0.45f, 0.25f) : new Color(0.95f, 0.75f, 0.2f));
+            }
+            label.fontSize = old;
+            small.fontSize = fontSize - 2;
+        }
+
         void Bar(Rect r, float t, Color c)
         {
             var prev = GUI.color;
@@ -87,6 +136,8 @@ namespace DestructionLab
             fill.Apply();
             label = new GUIStyle(GUI.skin.label) { fontSize = fontSize, fontStyle = FontStyle.Bold, clipping = TextClipping.Clip };
             label.normal.textColor = Color.white;
+            gaugeBig = new GUIStyle(label) { fontSize = fontSize + 17, alignment = TextAnchor.UpperRight };
+            gaugeBig.normal.textColor = new Color(0.55f, 0.95f, 0.62f);
             small = new GUIStyle(GUI.skin.label) { fontSize = fontSize - 2, fontStyle = FontStyle.Italic, clipping = TextClipping.Clip };
             small.normal.textColor = new Color(0.86f, 0.88f, 0.9f, 0.8f);
         }

@@ -97,7 +97,12 @@ namespace DestructionLab.EditorTools
 
         static GameObject ConfigureCraneModel() => ConfigurePropModel(CraneModelPath);
 
-        static GameObject ConfigurePropModel(string modelPath)
+        // Shared with ConvenienceStoreSceneSetup, which uses the same rigs.
+        internal const string CraneModel = CraneModelPath;
+        internal const string SkidSteerModel = SkidSteerModelPath;
+        internal const string DozerModel = DozerModelPath;
+
+        internal static GameObject ConfigurePropModel(string modelPath)
         {
             var importer = AssetImporter.GetAtPath(modelPath) as ModelImporter;
             if (importer == null) return null;

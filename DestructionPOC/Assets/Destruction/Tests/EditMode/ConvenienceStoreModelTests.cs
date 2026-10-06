@@ -34,6 +34,36 @@ namespace DestructionLab.Tests
         }
 
         [Test]
+        public void CleanupGauge_CountsEveryPieceButGroundLevelPaving()
+        {
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
+            var instance = Object.Instantiate(model);
+            try
+            {
+                var pieces = StructureImporter.Read(instance, DestructionSettings.CreateDefault()).pieces;
+                var paving = pieces.Where(p => !CleanupLedger.CountsAsBuilding(p)).ToList();
+                Assert.AreEqual(24, paving.Count, "sidewalk, curbs, pump island and wheel stops");
+                Assert.IsTrue(paving.All(p => p.name.StartsWith("Slab_")), string.Join(", ", paving.Select(p => p.name)));
+                Assert.AreEqual(208, pieces.Count - paving.Count);
+                // Cars, poles, signs and the boundary are part of the building.
+                foreach (string name in new[] { "Car_A_Body", "Post_Light0", "Sign_PylonCabinet", "Wall_BoundaryN0", "Roof_00", "Dumpster_Body" })
+                    Assert.IsTrue(pieces.Any(p => p.name.StartsWith(name) && CleanupLedger.CountsAsBuilding(p)), name);
+            }
+            finally
+            {
+                Object.DestroyImmediate(instance);
+            }
+        }
+
+        [Test]
+        public void CleanupGauge_FragmentsMapBackToTheirAuthoredPiece()
+        {
+            Assert.AreEqual("Wall_W3__brick", CleanupLedger.RootName("Wall_W3__brick"));
+            Assert.AreEqual("Wall_W3__brick", CleanupLedger.RootName("Wall_W3__brick frag 4"));
+            Assert.AreEqual("Wall_W3__brick", CleanupLedger.RootName("Wall_W3__brick frag 4 frag 1"));
+        }
+
+        [Test]
         public void StoreScenarioIsOfferedOnlyWhenAModelIsSupplied()
         {
             Assert.IsNull(ScenarioLibrary.ById("store"));

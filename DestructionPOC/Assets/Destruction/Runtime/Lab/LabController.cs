@@ -28,6 +28,25 @@ namespace DestructionLab
         public bool TriggerUsed { get; private set; }
         public string LastActionText { get; private set; } = "";
 
+        // Hooks for scenes that share the lab with a walking player and drivable rigs (ConvenienceStore). Defaults keep
+        // the plain lab exactly as it was.
+        /// <summary>R (and the HUD reset button) call this instead of <see cref="Reset"/> when set, so the scene can
+        /// reset its machines and ledger too. The handler is expected to call <see cref="Reset"/> itself.</summary>
+        public System.Action onResetRequested;
+        /// <summary>Pause key. Space in the plain lab; a scene whose player jumps with Space moves it.</summary>
+        public Key pauseKey = Key.Space;
+        /// <summary>N / B / PageUp / PageDown switch scenario. Off when the scene's machines belong to one scenario.</summary>
+        public bool scenarioSwitching = true;
+        /// <summary>While this returns true the lab keyboard shortcuts are ignored (the player is in a cab, where the same
+        /// letters drive the machine). Mouse tools are unaffected.</summary>
+        public System.Func<bool> keysBlocked;
+
+        public void RequestReset()
+        {
+            if (onResetRequested != null) onResetRequested();
+            else Reset();
+        }
+
         static readonly float[] Speeds = { 1f, 0.25f, 0.1f };
         int speedIndex;
         Vector2 pressPos;
@@ -94,23 +113,23 @@ namespace DestructionLab
             var kb = Keyboard.current;
             var mouse = Mouse.current;
 
-            if (kb != null)
+            if (kb != null && (keysBlocked == null || !keysBlocked()))
             {
                 if (kb.digit1Key.wasPressedThisFrame) Tool = LabTool.Damage;
                 if (kb.digit2Key.wasPressedThisFrame) Tool = LabTool.Explosion;
                 if (kb.digit3Key.wasPressedThisFrame) Tool = LabTool.DropBlock;
                 if (kb.digit4Key.wasPressedThisFrame) Tool = LabTool.Inspect;
-                if (kb.spaceKey.wasPressedThisFrame) TogglePause();
+                if (kb[pauseKey].wasPressedThisFrame) TogglePause();
                 if (kb.periodKey.wasPressedThisFrame) StepOnce();
                 if (kb.leftBracketKey.wasPressedThisFrame) SetSpeed(Mathf.Min(speedIndex + 1, Speeds.Length - 1));
                 if (kb.rightBracketKey.wasPressedThisFrame) SetSpeed(Mathf.Max(speedIndex - 1, 0));
-                if (kb.rKey.wasPressedThisFrame) Reset();
+                if (kb.rKey.wasPressedThisFrame) RequestReset();
                 if (kb.tKey.wasPressedThisFrame) Trigger();
                 if (kb.f1Key.wasPressedThisFrame) DiagnosticsVisible = !DiagnosticsVisible;
                 if (kb.f2Key.wasPressedThisFrame) Tint = (TintMode)(((int)Tint + 1) % 4);
                 if (kb.hKey.wasPressedThisFrame) HelpVisible = !HelpVisible;
-                if (kb.pageDownKey.wasPressedThisFrame || kb.nKey.wasPressedThisFrame) LoadScenario(ScenarioIndex + 1);
-                if (kb.pageUpKey.wasPressedThisFrame || kb.bKey.wasPressedThisFrame) LoadScenario(ScenarioIndex - 1);
+                if (scenarioSwitching && (kb.pageDownKey.wasPressedThisFrame || kb.nKey.wasPressedThisFrame)) LoadScenario(ScenarioIndex + 1);
+                if (scenarioSwitching && (kb.pageUpKey.wasPressedThisFrame || kb.bKey.wasPressedThisFrame)) LoadScenario(ScenarioIndex - 1);
                 if (kb.escapeKey.wasPressedThisFrame) { SelectedPiece = -1; SelectedConnection = -1; }
             }
 

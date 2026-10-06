@@ -25,8 +25,12 @@ namespace DestructionLab
         public Vector2 lotCenter;
         public Vector2 lotSize;
 
+        [Tooltip("Optional drivable yard (crane, dozer, skid steer, roll-off container, walking player, cleanup gauge). Built after the scenario loads.")]
+        public StoreYard yard;
+
         public DestructionWorld World { get; private set; }
         public LabController Controller { get; private set; }
+        public Collider Ground { get; private set; }
 
         void Start()
         {
@@ -36,7 +40,7 @@ namespace DestructionLab
             ScenarioLibrary.AuthoredModel = authoredModel;
             ScenarioLibrary.WarehouseModel = warehouseModel;
             ScenarioLibrary.ConvenienceStoreModel = convenienceStoreModel;
-            CreateGround(settings);
+            Ground = CreateGround(settings).GetComponent<Collider>();
             if (lotSize.x > 0f && lotSize.y > 0f) CreateLotPad();
 
             var worldGo = new GameObject("Destruction World");
@@ -67,6 +71,7 @@ namespace DestructionLab
 
             Controller.Init(World, labCam);
             overlay.Init(World, Controller);
+            hud.compactLayout = yard != null;
             hud.Init(Controller, World);
             int start = startScenario;
             if (!string.IsNullOrEmpty(startScenarioId))
@@ -76,6 +81,7 @@ namespace DestructionLab
                 else Debug.LogWarning($"[DestructionLab] start scenario '{startScenarioId}' not found; using index {startScenario}.");
             }
             Controller.LoadScenario(start);
+            if (yard != null) yard.Begin(this, cam, labCam);
         }
 
         /// <summary>Visual-only asphalt slab a hair above the ground (no collider; the ground still carries everything).</summary>

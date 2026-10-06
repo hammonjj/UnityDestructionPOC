@@ -29,6 +29,10 @@ namespace DestructionLab
         static readonly Color ButtonActive = new Color(0.15f, 0.55f, 0.75f, 1f);
         static readonly Color TextColor = new Color(0.92f, 0.93f, 0.95f, 1f);
 
+        /// <summary>Hide the scenario list and the camera help card (top-left, bottom-left). Set by scenes that put the
+        /// player's HUD and the rig controls card there (ConvenienceStore). Call before <see cref="Init"/>.</summary>
+        public bool compactLayout;
+
         public void Init(LabController l, DestructionWorld w)
         {
             lab = l;
@@ -60,7 +64,8 @@ namespace DestructionLab
             scenarioText = Label(left, "", 14, FontStyle.Normal);
             var row = Row(left);
             MakeButton(row, "Trigger (T)", () => lab.Trigger(), out triggerLabel);
-            MakeButton(row, "Reset (R)", () => lab.Reset(), out _);
+            MakeButton(row, "Reset (R)", () => lab.RequestReset(), out _);
+            left.gameObject.SetActive(!compactLayout);
 
             // Right: tools, playback, tuning.
             var right = Panel(root, new Vector2(1f, 1f), new Vector2(-12f, -12f), 330f);
@@ -139,7 +144,7 @@ namespace DestructionLab
             speedLabel.text = $"{lab.TimeScale:0.##}×";
             diagLabel.text = lab.DiagnosticsVisible ? "Diagnostics: on" : "Diagnostics: off";
             tintLabel.text = $"Tint: {lab.Tint}";
-            helpPanel.SetActive(lab.HelpVisible);
+            helpPanel.SetActive(lab.HelpVisible && !compactLayout);
 
             var s = lab.Scenarios[lab.ScenarioIndex];
             triggerLabel.text = s.trigger != null ? $"T: {s.triggerLabel}" : "(no trigger)";

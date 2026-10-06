@@ -42,6 +42,24 @@ namespace DestructionLab.EditorTools
             boot.lotCenter = Vector2.zero;
             boot.lotSize = LotSize;
 
+            // The drivable yard: crane, skid steer, dozer, roll-off container, player and the cleanup gauge. The rigs
+            // are the CraneTest ones, so the models get the same material/import setup.
+            var yard = go.AddComponent<StoreYard>();
+            yard.craneModel = CraneTestSceneSetup.ConfigurePropModel(CraneTestSceneSetup.CraneModel);
+            yard.skidSteerModel = CraneTestSceneSetup.ConfigurePropModel(CraneTestSceneSetup.SkidSteerModel);
+            yard.dozerModel = CraneTestSceneSetup.ConfigurePropModel(CraneTestSceneSetup.DozerModel);
+            if (yard.craneModel == null)
+            {
+                Debug.LogWarning("[DestructionLab] crane FBX missing; convenience store built without the drivable yard.");
+                Object.DestroyImmediate(yard);
+            }
+            else
+            {
+                if (yard.skidSteerModel == null) Debug.LogWarning("[DestructionLab] skid steer FBX missing; store yard built without it.");
+                if (yard.dozerModel == null) Debug.LogWarning("[DestructionLab] landfill dozer FBX missing; store yard built without it.");
+                boot.yard = yard;
+            }
+
             Directory.CreateDirectory("Assets/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);
 
