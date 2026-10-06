@@ -34,6 +34,9 @@ namespace DestructionLab
         /// <summary>Warehouse blockout (Blender FBX), offered as a scenario when the lab supplies one.</summary>
         public static GameObject WarehouseModel;
 
+        /// <summary>Convenience-store lot blockout (Blender FBX), offered as a scenario when the scene supplies one.</summary>
+        public static GameObject ConvenienceStoreModel;
+
         /// <summary>Last import report, shown in the scenario's on-screen text.</summary>
         public static string AuthoredReport = "";
 
@@ -54,6 +57,7 @@ namespace DestructionLab
             };
             if (AuthoredModel != null) list.Add(AuthoredBuilding());
             if (WarehouseModel != null) list.Add(Warehouse());
+            if (ConvenienceStoreModel != null) list.Add(ConvenienceStore());
             return list;
         }
 
@@ -125,6 +129,24 @@ namespace DestructionLab
             triggerLabel = "Blow out a corner",
             trigger = w => w.Explode(new Vector3(-4.6f, 1.2f, -3.1f), 2.6f, 1.8f, 16000f),
             cameraPivot = new Vector3(0f, 3.2f, 0f), cameraDistance = 22f, cameraYaw = 145f, cameraPitch = 14f,
+            };
+        }
+
+        static Scenario ConvenienceStore()
+        {
+            DestructionSettings settings = null; // handed over by configure, which runs before build
+            return new Scenario
+            {
+            id = "store",
+            title = "Convenience store lot (Blender)",
+            instruction = "Convenience store, pump canopy, cars, light poles, sign and fence on a 50 x 40 m lot. Press T to blow out the store front corner, or use any tool on it.",
+            expected = "Brick walls break locally, the canopy and awning lose support when their posts go, and light vehicles and poles topple.",
+            build = () => ReadModel(ConvenienceStoreModel, settings),
+            configure = s => settings = s,
+            triggerLabel = "Blow out the store corner",
+            // The FBX import maps Blender (x, y) to Unity (-x, -z): the store's SW corner pier sits near (16, -10).
+            trigger = w => w.Explode(new Vector3(15.6f, 1.2f, -10.4f), 2.6f, 1.8f, 16000f),
+            cameraPivot = new Vector3(2f, 2.5f, -4f), cameraDistance = 55f, cameraYaw = 150f, cameraPitch = 24f,
             };
         }
 

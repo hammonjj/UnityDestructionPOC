@@ -11,5 +11,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/CraneTest.unity
     guid: 84c40cd70f1ab45aaa9c4ed043c9c92c
+  - enabled: 1
+    path: Assets/Scenes/ConvenienceStore.unity
+    guid: e2391a1f24e4e446f8cbfd0ab729de38
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

@@ -54,6 +54,23 @@ namespace DestructionLab.EditorTools
             EditorUtility.SetDirty(settings);
             AssetDatabase.SaveAssets();
 
+            var scene = NewLabScene();
+
+            var go = new GameObject("Destruction Lab");
+            var boot = go.AddComponent<LabBootstrap>();
+            boot.settings = settings;
+            boot.authoredModel = ConfigureAuthoredModel(AuthoredModelPath);
+            boot.warehouseModel = ConfigureAuthoredModel(WarehouseModelPath);
+
+            EditorSceneManager.SaveScene(scene, ScenePath);
+            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
+            AssetDatabase.SaveAssets();
+            Debug.Log("[DestructionLab] Lab scene, settings and materials rebuilt.");
+        }
+
+        /// <summary>Empty scene with the lab's sun, sky colour and flat ambient light.</summary>
+        internal static UnityEngine.SceneManagement.Scene NewLabScene()
+        {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
             var light = Object.FindAnyObjectByType<Light>();
             if (light != null)
@@ -70,17 +87,7 @@ namespace DestructionLab.EditorTools
             }
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = new Color(0.45f, 0.47f, 0.5f);
-
-            var go = new GameObject("Destruction Lab");
-            var boot = go.AddComponent<LabBootstrap>();
-            boot.settings = settings;
-            boot.authoredModel = ConfigureAuthoredModel(AuthoredModelPath);
-            boot.warehouseModel = ConfigureAuthoredModel(WarehouseModelPath);
-
-            EditorSceneManager.SaveScene(scene, ScenePath);
-            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
-            AssetDatabase.SaveAssets();
-            Debug.Log("[DestructionLab] Lab scene, settings and materials rebuilt.");
+            return scene;
         }
 
         const string AuthoredModelPath = Root + "/Models/SampleBuilding.fbx";

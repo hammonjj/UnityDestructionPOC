@@ -15,8 +15,15 @@ namespace DestructionLab
         public GameObject authoredModel;
         [Tooltip("Optional warehouse blockout (a Blender FBX). When set, it is offered as a scenario after the authored building.")]
         public GameObject warehouseModel;
+        [Tooltip("Optional convenience-store lot blockout (a Blender FBX). When set, it is offered as a scenario after the warehouse.")]
+        public GameObject convenienceStoreModel;
         [Tooltip("Scenario loaded on Play (index into the scenario list).")]
         public int startScenario = 4;
+        [Tooltip("When set, overrides startScenario with the scenario of this id (e.g. \"store\").")]
+        public string startScenarioId = "";
+        [Tooltip("Optional asphalt lot pad (centre x/z, size x/z in metres) drawn over the ground. Zero size disables it.")]
+        public Vector2 lotCenter;
+        public Vector2 lotSize;
 
         public DestructionWorld World { get; private set; }
         public LabController Controller { get; private set; }
@@ -28,7 +35,9 @@ namespace DestructionLab
 
             ScenarioLibrary.AuthoredModel = authoredModel;
             ScenarioLibrary.WarehouseModel = warehouseModel;
+            ScenarioLibrary.ConvenienceStoreModel = convenienceStoreModel;
             CreateGround(settings);
+            if (lotSize.x > 0f && lotSize.y > 0f) CreateLotPad();
 
             var worldGo = new GameObject("Destruction World");
             worldGo.SetActive(false);
@@ -59,7 +68,32 @@ namespace DestructionLab
             Controller.Init(World, labCam);
             overlay.Init(World, Controller);
             hud.Init(Controller, World);
-            Controller.LoadScenario(startScenario);
+            int start = startScenario;
+            if (!string.IsNullOrEmpty(startScenarioId))
+            {
+                int found = Controller.Scenarios.FindIndex(s => s.id == startScenarioId);
+                if (found >= 0) start = found;
+                else Debug.LogWarning($"[DestructionLab] start scenario '{startScenarioId}' not found; using index {startScenario}.");
+            }
+            Controller.LoadScenario(start);
+        }
+
+        /// <summary>Visual-only asphalt slab a hair above the ground (no collider; the ground still carries everything).</summary>
+        void CreateLotPad()
+        {
+            var pad = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            pad.name = "Lot Asphalt";
+            Destroy(pad.GetComponent<BoxCollider>());
+            pad.transform.position = new Vector3(lotCenter.x, 0.005f, lotCenter.y);
+            pad.transform.localScale = new Vector3(lotSize.x, 0.01f, lotSize.y);
+            var sh = Shader.Find("Universal Render Pipeline/Lit");
+            if (sh != null)
+            {
+                var mat = new Material(sh);
+                mat.SetColor("_BaseColor", new Color(0.16f, 0.16f, 0.17f));
+                mat.SetFloat("_Smoothness", 0.15f);
+                pad.GetComponent<MeshRenderer>().sharedMaterial = mat;
+            }
         }
 
         internal static GameObject CreateGround(DestructionSettings settings)
