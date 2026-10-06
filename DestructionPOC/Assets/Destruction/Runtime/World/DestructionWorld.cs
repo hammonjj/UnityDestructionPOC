@@ -761,7 +761,8 @@ namespace DestructionLab
             stats.maxDynamicBodies = Mathf.Max(stats.maxDynamicBodies, dyn + sleep);
             stats.maxActiveJoints = Mathf.Max(stats.maxActiveJoints, joints.Count);
             int frags = 0;
-            foreach (var p in pieces) if (p != null && p.isFragment && !p.removed) frags++;
+            // Fragments credited to a collection container (no-shatter) are finished with and leave the budget.
+            foreach (var p in pieces) if (p != null && p.isFragment && !p.removed && !Graph.pieces[p.index].noShatter) frags++;
             stats.liveFragments = frags;
         }
     }

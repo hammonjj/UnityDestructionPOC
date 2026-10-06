@@ -13,6 +13,10 @@ namespace DestructionLab
         readonly Dictionary<int, FailureReason> shatterRequests = new Dictionary<int, FailureReason>();
         readonly List<int> shatterOrder = new List<int>();
 
+        // Shape of each live convex fragment in its own frame (centred on its centre of mass, before the debris
+        // shrink), so it can shatter again into cells that tile it exactly.
+        readonly Dictionary<int, ConvexCell> fragmentCells = new Dictionary<int, ConvexCell>();
+
         public int LiveFragments => stats.liveFragments;
 
         bool CanShatter(int piece)
@@ -22,11 +26,29 @@ namespace DestructionLab
             var p = pieces[piece];
             if (p.removed) return false;
             if (Graph.pieces[piece].noShatter) return false;
-            return !p.isFragment || f.fragmentsCanShatter;
+            if (!p.isFragment) return true;
+            if (!f.fragmentsCanShatter) return false;
+            Vector3 s = ShatterSize(piece, out _);
+            return Mathf.Max(s.x, Mathf.Max(s.y, s.z)) >= f.minShatterSize;
+        }
+
+        /// <summary>
+        /// Current dimensions of a piece, including any debris shrink. A convex fragment also returns its shape at
+        /// that size; box pieces and box fragments return null and are described by their scale alone.
+        /// </summary>
+        Vector3 ShatterSize(int piece, out ConvexCell solid)
+        {
+            var t = pieces[piece].transform;
+            solid = null;
+            if (!fragmentCells.TryGetValue(piece, out var cell)) return t.localScale; // cluster parents are unit scale
+            solid = cell.Transformed(Vector3.zero, t.localScale);
+            return solid.GetBounds().size;
         }
 
         void RequestShatter(int piece, FailureReason reason)
         {
+            // Rubble landing on rubble must not grind itself down; only tools break fragments further.
+            if (reason == FailureReason.Impact && piece >= 0 && piece < pieces.Count && pieces[piece].isFragment) return;
             if (!CanShatter(piece) || shatterRequests.ContainsKey(piece)) return;
             shatterRequests[piece] = reason;
             shatterOrder.Add(piece);
@@ -75,9 +97,10 @@ namespace DestructionLab
                 done++;
 
                 var t = p.transform;
-                Vector3 size = t.localScale; // includes any debris shrink; cluster parents are unit scale
+                Vector3 size = ShatterSize(i, out var solid);
                 int wanted = Fragmenter.TargetCount(size, f.targetSize, f.minPerPiece, f.maxPerPiece);
-                int room = f.maxLiveFragments - stats.liveFragments;
+                // A shattering fragment frees its own slot.
+                int room = f.maxLiveFragments - stats.liveFragments + (p.isFragment ? 1 : 0);
                 int count = Mathf.Min(wanted, room);
 
                 // Sever everything attached to the piece, logging each connection with the shatter reason.
@@ -113,12 +136,21 @@ namespace DestructionLab
                 int material = Graph.pieces[i].material;
                 string baseName = Graph.pieces[i].name;
 
-                RemovePieceFromWorld(i);
-
                 part.Restart();
-                var defs = BuildFragments(size, count, Fragmenter.SeedFor(f.seed, i), pos, rot, material, baseName);
+                var cells = new List<ConvexCell>(count);
+                var defs = BuildFragments(size, solid, count, Fragmenter.SeedFor(f.seed, i), pos, rot, material, baseName,
+                    Graph.pieces[i].Volume, cells);
                 part.Stop();
                 stats.shapeMs += (float)part.Elapsed.TotalMilliseconds;
+                if (defs.Count < 2)
+                {
+                    // A fragment too awkward to cut cleanly stays whole rather than losing volume.
+                    ShrinkIfDebris(i);
+                    continue;
+                }
+
+                RemovePieceFromWorld(i);
+                if (p.isFragment) stats.liveFragments--;
 
                 part.Restart();
                 for (int k = 0; k < defs.Count; k++)
@@ -128,6 +160,7 @@ namespace DestructionLab
                     int fi = Graph.AddLoosePiece(def, Settings);
                     CreatePieceObject(fi, StaticCluster);
                     StaticCluster.pieces.Remove(fi);
+                    if (cells[k] != null) fragmentCells[fi] = cells[k];
                     var fp = pieces[fi];
                     fp.isFragment = true;
                     fp.shrunk = true;
@@ -177,35 +210,47 @@ namespace DestructionLab
 
         /// <summary>
         /// Fragment shapes for one shattered piece, already in world space. Convex Voronoi cells by default
-        /// (irregular, exact tiling); axis-aligned box splits as a fallback when cells degenerate.
+        /// (irregular, exact tiling); axis-aligned box splits as a fallback when cells degenerate. A convex
+        /// fragment (`solid` set) is re-cut along its own shape and never falls back to boxes, which would not fit
+        /// it; it returns fewer than two fragments instead. `cells` receives each fragment's shape (null for box
+        /// fragments). Fragment volumes are scaled so their mass adds up to the piece's (`pieceVolume`).
         /// </summary>
-        List<PieceDef> BuildFragments(Vector3 size, int count, int seed, Vector3 pos, Quaternion rot, int material, string baseName)
+        List<PieceDef> BuildFragments(Vector3 size, ConvexCell solid, int count, int seed, Vector3 pos, Quaternion rot,
+            int material, string baseName, float pieceVolume, List<ConvexCell> cells)
         {
             var defs = new List<PieceDef>(count);
             var f = Settings.fragments;
 
-            if (f.shape == FragmentShape.ConvexCells)
+            if (f.shape == FragmentShape.ConvexCells || solid != null)
             {
-                var cells = VoronoiFracture.Cells(size, count, seed, f.minSize * 0.5f);
-                float wanted = size.x * size.y * size.z;
-                float got = 0f;
-                foreach (var c in cells) got += c.volume;
-                // Degenerate site layouts can lose volume; fall back rather than lose mass.
-                if (cells.Count >= 2 && got >= wanted * 0.9f)
+                float wanted = solid != null ? solid.volume : size.x * size.y * size.z;
+                // Awkward fragment shapes can lose sites or slivers at one count yet cut cleanly at a lower one.
+                for (int n = count; n >= (solid != null ? 2 : count); n--)
                 {
-                    for (int k = 0; k < cells.Count; k++)
+                    var made = solid != null
+                        ? VoronoiFracture.Cells(solid, n, seed, f.minSize * 0.5f)
+                        : VoronoiFracture.Cells(size, n, seed, f.minSize * 0.5f);
+                    float got = 0f;
+                    foreach (var c in made) got += c.volume;
+                    // Degenerate site layouts can lose volume; fall back rather than lose mass.
+                    if (made.Count < 2 || got < wanted * 0.9f) continue;
+
+                    float volumeScale = pieceVolume / got;
+                    for (int k = 0; k < made.Count; k++)
                     {
-                        var cell = cells[k];
+                        var cell = made[k];
                         var mesh = FragmentMesh.Build(cell, $"{baseName} frag {k}");
                         fragmentMeshes.Add(mesh);
                         var def = PieceDef.Box($"{baseName} frag {k}", pos + rot * cell.centroid, Vector3.one, PieceKind.Rubble, material);
                         def.rotation = rot;
                         def.mesh = mesh;
-                        def.meshVolume = cell.volume;
+                        def.meshVolume = cell.volume * volumeScale;
                         defs.Add(def);
+                        cells.Add(cell.Transformed(-cell.centroid, Vector3.one));
                     }
                     return defs;
                 }
+                if (solid != null) return defs;
             }
 
             var boxes = Fragmenter.Split(size, count, f.minSize, seed);
@@ -215,6 +260,7 @@ namespace DestructionLab
                 var def = PieceDef.Box($"{baseName} frag {k}", pos + rot * b.center, b.size, PieceKind.Rubble, material);
                 def.rotation = rot;
                 defs.Add(def);
+                cells.Add(null);
             }
             return defs;
         }
@@ -224,6 +270,7 @@ namespace DestructionLab
             foreach (var m in fragmentMeshes)
                 if (m != null) DestroyImmediate(m);
             fragmentMeshes.Clear();
+            fragmentCells.Clear();
         }
 
         /// <summary>Takes a piece out of the simulation (shattered or demolished).</summary>

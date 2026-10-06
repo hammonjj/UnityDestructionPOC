@@ -77,12 +77,13 @@ MonoBehaviour:
     minPerPiece: 3
     maxPerPiece: 12
     minSize: 0.15
-    maxLiveFragments: 300
+    maxLiveFragments: 500
     maxShattersPerStep: 2
     directShatterDamage: 1
     shatterOnExplosionCore: 1
     impactShatterEnergyPerKg: 20
-    fragmentsCanShatter: 0
+    fragmentsCanShatter: 1
+    minShatterSize: 0.35
     seed: 1729
   materials:
   - name: Concrete

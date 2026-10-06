@@ -17,7 +17,7 @@ namespace DestructionLab
             foreach (var poly in cell.faces)
             {
                 if (poly.Count < 3) continue;
-                Vector3 n = Newell(poly);
+                Vector3 n = ConvexCell.Normal(poly);
                 for (int i = 1; i + 1 < poly.Count; i++)
                 {
                     // Faces are already wound so that cross(b-a, c-a) points out of the solid, which is the
@@ -39,19 +39,6 @@ namespace DestructionLab
             mesh.SetTriangles(tris, 0);
             mesh.RecalculateBounds();
             return mesh;
-        }
-
-        static Vector3 Newell(System.Collections.Generic.List<Vector3> poly)
-        {
-            Vector3 n = Vector3.zero;
-            for (int i = 0; i < poly.Count; i++)
-            {
-                Vector3 a = poly[i], b = poly[(i + 1) % poly.Count];
-                n.x += (a.y - b.y) * (a.z + b.z);
-                n.y += (a.z - b.z) * (a.x + b.x);
-                n.z += (a.x - b.x) * (a.y + b.y);
-            }
-            return n.sqrMagnitude > 1e-12f ? n.normalized : Vector3.up;
         }
     }
 }

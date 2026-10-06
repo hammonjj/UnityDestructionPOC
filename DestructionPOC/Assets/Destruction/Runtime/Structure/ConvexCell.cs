@@ -152,10 +152,10 @@ namespace DestructionLab
             centroid = Mathf.Abs(v6) < 1e-9f ? Vector3.zero : acc / (4f * v6);
         }
 
-        /// <summary>Smallest dimension of the cell's axis-aligned bounds; used to reject slivers.</summary>
-        public float MinExtent()
+        /// <summary>Axis-aligned bounds of the cell.</summary>
+        public Bounds GetBounds()
         {
-            if (faces.Count == 0) return 0f;
+            if (faces.Count == 0) return new Bounds();
             Vector3 lo = faces[0][0], hi = faces[0][0];
             foreach (var poly in faces)
             foreach (var p in poly)
@@ -163,8 +163,56 @@ namespace DestructionLab
                 lo = Vector3.Min(lo, p);
                 hi = Vector3.Max(hi, p);
             }
-            Vector3 e = hi - lo;
+            var b = new Bounds();
+            b.SetMinMax(lo, hi);
+            return b;
+        }
+
+        /// <summary>Smallest dimension of the cell's axis-aligned bounds; used to reject slivers.</summary>
+        public float MinExtent()
+        {
+            Vector3 e = GetBounds().size;
             return Mathf.Min(e.x, Mathf.Min(e.y, e.z));
+        }
+
+        /// <summary>True when p lies inside the solid, at least `margin` from every face.</summary>
+        public bool Contains(Vector3 p, float margin = 0f)
+        {
+            foreach (var poly in faces)
+            {
+                if (poly.Count < 3) continue;
+                if (Vector3.Dot(Normal(poly), p - poly[0]) > -margin) return false;
+            }
+            return faces.Count > 0;
+        }
+
+        /// <summary>A copy moved by `offset` and then scaled per axis about the origin.</summary>
+        public ConvexCell Transformed(Vector3 offset, Vector3 scale)
+        {
+            var c = new ConvexCell();
+            foreach (var f in faces)
+            {
+                var g = new List<Vector3>(f.Count);
+                foreach (var p in f) g.Add(Vector3.Scale(p + offset, scale));
+                // A mirroring scale would flip the winding; fragments only ever shrink uniformly.
+                c.faces.Add(g);
+            }
+            c.Recompute();
+            return c;
+        }
+
+        /// <summary>Newell's outward normal of a face polygon.</summary>
+        public static Vector3 Normal(List<Vector3> poly)
+        {
+            Vector3 n = Vector3.zero;
+            for (int i = 0; i < poly.Count; i++)
+            {
+                Vector3 a = poly[i], b = poly[(i + 1) % poly.Count];
+                n.x += (a.y - b.y) * (a.z + b.z);
+                n.y += (a.z - b.z) * (a.x + b.x);
+                n.z += (a.x - b.x) * (a.y + b.y);
+            }
+            return n.sqrMagnitude > 1e-12f ? n.normalized : Vector3.up;
         }
     }
 
@@ -175,13 +223,35 @@ namespace DestructionLab
     /// </summary>
     public static class VoronoiFracture
     {
-        public static List<ConvexCell> Cells(Vector3 size, int count, int seed, float minExtent = 0.08f)
+        public static List<ConvexCell> Cells(Vector3 size, int count, int seed, float minExtent = 0.08f) =>
+            Cells(ConvexCell.Box(size), Sites(size, count, seed), minExtent);
+
+        /// <summary>
+        /// Voronoi fracture of any convex solid (e.g. a fragment shattering again). Sites are scattered over the
+        /// solid's bounds and only those inside it are kept, so the cells still tile the solid exactly.
+        /// </summary>
+        public static List<ConvexCell> Cells(ConvexCell solid, int count, int seed, float minExtent = 0.08f)
         {
-            var sites = Sites(size, count, seed);
+            var bounds = solid.GetBounds();
+            float fill = Mathf.Clamp(solid.volume / Mathf.Max(1e-6f, bounds.size.x * bounds.size.y * bounds.size.z), 0.1f, 1f);
+            var candidates = Sites(bounds.size, Mathf.CeilToInt(count / fill * 1.5f), seed);
+            float margin = 0.02f * Mathf.Min(bounds.size.x, Mathf.Min(bounds.size.y, bounds.size.z));
+            var sites = new List<Vector3>(count);
+            foreach (var p in candidates)
+            {
+                Vector3 q = p + bounds.center;
+                if (solid.Contains(q, margin)) sites.Add(q);
+                if (sites.Count == count) break;
+            }
+            return Cells(solid, sites, minExtent);
+        }
+
+        static List<ConvexCell> Cells(ConvexCell solid, List<Vector3> sites, float minExtent)
+        {
             var cells = new List<ConvexCell>(sites.Count);
             foreach (var si in sites)
             {
-                var cell = ConvexCell.Box(size);
+                var cell = solid.Clone();
                 bool alive = true;
                 foreach (var sj in sites)
                 {

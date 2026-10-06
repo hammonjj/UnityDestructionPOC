@@ -129,6 +129,65 @@ namespace DestructionLab.Tests
             yield return null;
         }
 
+        static float Largest(Piece p)
+        {
+            var mc = p.shape as MeshCollider;
+            Vector3 s = mc != null ? Vector3.Scale(mc.sharedMesh.bounds.size, p.transform.localScale) : p.transform.localScale;
+            return Mathf.Max(s.x, Mathf.Max(s.y, s.z));
+        }
+
+        /// <summary>A breaker hammering rubble keeps breaking it until every chunk is under the minimum size.</summary>
+        [UnityTest]
+        public IEnumerator Hammering_Fragments_BreaksThemDownToTheMinimumSize()
+        {
+            f = WorldFixture.Create("shatter");
+            var s = f.world.Settings.fragments;
+            s.maxLiveFragments = 2000;
+            s.maxShattersPerStep = 32;
+            int target = f.Piece("Panel 01");
+            float mass = f.world.Graph.mass[target];
+            f.world.Explode(new Vector3(0f, 1.6f, -0.6f), 2.6f, 1.6f, 0f);
+            f.Steps(1);
+            int firstGeneration = Fragments("Panel 01").Count;
+            Assert.That(Fragments("Panel 01").Max(Largest), Is.GreaterThan(s.minShatterSize), "the first shatter leaves chunks to break");
+
+            for (int round = 0; round < 12; round++)
+            {
+                var big = Fragments("Panel 01").Where(p => Largest(p) >= s.minShatterSize).ToList();
+                if (big.Count == 0) break;
+                foreach (var p in big) f.world.Damage(p.index, s.directShatterDamage);
+                f.Steps(1);
+            }
+
+            var frags = Fragments("Panel 01");
+            Debug.Log($"[Reshatter] {firstGeneration} first-generation chunks became {frags.Count}, largest {frags.Max(Largest):0.00} m, smallest {frags.Min(Largest):0.00} m");
+            Assert.That(frags.Count, Is.GreaterThan(firstGeneration), "fragments shattered again");
+            Assert.That(frags.All(p => Largest(p) < s.minShatterSize), "no chunk is left above the minimum size");
+            Assert.IsTrue(frags.All(p => p.shape is MeshCollider mc && mc.convex), "re-shattered chunks are still convex meshes");
+            Assert.That(frags.Sum(p => f.world.Graph.mass[p.index]), Is.EqualTo(mass).Within(0.02f * mass), "mass is conserved through every generation (parents are removed)");
+
+            // Chunks under the minimum ignore further hammering.
+            int before = frags.Count;
+            foreach (var p in frags) f.world.Damage(p.index, s.directShatterDamage * 3f);
+            f.Steps(1);
+            Assert.AreEqual(before, Fragments("Panel 01").Count);
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator Fragments_DoNotReshatter_WhenDisabled()
+        {
+            f = WorldFixture.Create("shatter");
+            f.world.Settings.fragments.fragmentsCanShatter = false;
+            f.world.Explode(new Vector3(0f, 1.6f, -0.6f), 2.6f, 1.6f, 0f);
+            f.Steps(1);
+            var frags = Fragments("Panel 01");
+            foreach (var p in frags) f.world.Damage(p.index, 5f);
+            f.Steps(2);
+            Assert.AreEqual(frags.Count, Fragments("Panel 01").Count);
+            yield return null;
+        }
+
         [UnityTest]
         public IEnumerator BoxFragmentShape_StillWorks()
         {

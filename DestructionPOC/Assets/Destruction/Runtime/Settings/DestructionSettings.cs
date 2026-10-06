@@ -164,8 +164,8 @@ namespace DestructionLab
         [Range(2, 32)] public int maxPerPiece = 12;
         [Tooltip("Smallest fragment dimension, m.")]
         public float minSize = 0.15f;
-        [Tooltip("Live fragment budget. Over budget, a piece that should shatter detaches whole instead.")]
-        public int maxLiveFragments = 300;
+        [Tooltip("Live fragment budget. Over budget, a piece that should shatter detaches whole instead. Fragments credited to a collection container do not count.")]
+        public int maxLiveFragments = 500;
         [Tooltip("Pieces shattered per fixed step. The rest wait their turn; none are dropped. Spreads the cost of building fragment shapes.")]
         [Range(1, 32)] public int maxShattersPerStep = 2;
         [Tooltip("Accumulated direct (click) damage on a piece that shatters it.")]
@@ -173,8 +173,10 @@ namespace DestructionLab
         public bool shatterOnExplosionCore = true;
         [Tooltip("Impact energy per kg of the struck piece that shatters it, J/kg. A 3 m fall onto concrete gives about 13 J/kg.")]
         public float impactShatterEnergyPerKg = 20f;
-        [Tooltip("Fragments of a shattered piece never shatter again (avoids gravel).")]
-        public bool fragmentsCanShatter = false;
+        [Tooltip("Fragments shatter again under direct damage or an explosion core, down to the minimum shatter size. Impacts never re-shatter fragments, so falling rubble cannot cascade into gravel.")]
+        public bool fragmentsCanShatter = true;
+        [Tooltip("A fragment whose largest dimension is below this never shatters again: the smallest rubble the tools can make, m.")]
+        [Range(0.1f, 2f)] public float minShatterSize = 0.35f;
         public int seed = 1729;
     }
 

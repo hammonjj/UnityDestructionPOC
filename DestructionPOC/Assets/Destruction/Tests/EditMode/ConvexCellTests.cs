@@ -142,6 +142,21 @@ namespace DestructionLab.Tests
         }
 
         [Test]
+        public void Cells_OfACell_TileIt_AndStayInsideIt()
+        {
+            // A fragment shattering again: cut one irregular cell, recentred as the world stores it.
+            var parent = VoronoiFracture.Cells(Panel, 6, 9).OrderByDescending(c => c.volume).First();
+            parent = parent.Transformed(-parent.centroid, Vector3.one * 0.96f);
+            var cells = VoronoiFracture.Cells(parent, 4, 21, 0.02f);
+            Assert.That(cells.Count, Is.GreaterThanOrEqualTo(2));
+            Assert.That(cells.Sum(c => c.volume), Is.EqualTo(parent.volume).Within(0.02f * parent.volume), "children tile the parent");
+            foreach (var cell in cells)
+            foreach (var poly in cell.faces)
+            foreach (var p in poly)
+                Assert.IsTrue(parent.Contains(p, -1e-3f), "every child vertex lies inside the parent");
+        }
+
+        [Test]
         public void Mesh_IsBuiltAroundTheCentroid()
         {
             var cell = VoronoiFracture.Cells(Panel, 6, 9)[0];
