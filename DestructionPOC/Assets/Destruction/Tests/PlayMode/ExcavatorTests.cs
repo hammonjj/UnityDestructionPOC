@@ -131,7 +131,7 @@ namespace DestructionLab.Tests
                 new[] { ExcavatorAttachment.Crusher, ExcavatorAttachment.Shear, ExcavatorAttachment.Breaker, ExcavatorAttachment.Grapple },
                 boot.Excavators.Select(r => r.attachment));
             Assert.IsNotNull(boot.Crane);
-            Assert.AreEqual(5 + boot.Loaders.Count, player.rigs.Count, "crane + 4 excavators + the loaders are enterable");
+            Assert.AreEqual(5 + boot.Loaders.Count + (boot.Dozer != null ? 1 : 0), player.rigs.Count, "crane + 4 excavators + the loaders and dozer are enterable");
             foreach (var n in new[] { "Crusher wall L", "Steel beam 1", "Breaker slab 11", "Debris chunk 0" })
                 Assert.GreaterOrEqual(PieceIndex(n), 0, n);
             Assert.AreEqual(ExcavatorTestSite.SteelName, boot.World.Settings.Material(boot.SteelMaterial).name);

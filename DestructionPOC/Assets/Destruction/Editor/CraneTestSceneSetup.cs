@@ -18,6 +18,7 @@ namespace DestructionLab.EditorTools
         const string ExcavatorModelPath = "Assets/Destruction/Models/Excavator/Excavator.fbx";
         const string WheelLoaderModelPath = "Assets/Destruction/Models/WheelLoader/WheelLoader.fbx";
         const string SkidSteerModelPath = "Assets/Destruction/Models/SkidSteer/SkidSteer.fbx";
+        const string DozerModelPath = "Assets/Destruction/Models/LandfillDozer/LandfillDozer.fbx";
         const string MaterialDir = "Assets/Destruction/Materials/Crane";
 
         // name, Blender linear base colour, metallic, roughness (mirrors Tools/blender/build_wrecking_crane.py)
@@ -80,6 +81,9 @@ namespace DestructionLab.EditorTools
             boot.wheelLoaderModel = ConfigurePropModel(WheelLoaderModelPath);
             boot.skidSteerModel = ConfigurePropModel(SkidSteerModelPath);
             if (boot.wheelLoaderModel == null || boot.skidSteerModel == null) Debug.LogWarning("[DestructionLab] loader FBX missing; CraneTest built without it.");
+
+            boot.dozerModel = ConfigurePropModel(DozerModelPath);
+            if (boot.dozerModel == null) Debug.LogWarning("[DestructionLab] landfill dozer FBX missing; CraneTest built without it.");
 
             Directory.CreateDirectory("Assets/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);

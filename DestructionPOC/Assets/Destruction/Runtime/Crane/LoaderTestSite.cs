@@ -23,6 +23,7 @@ namespace DestructionLab
             public Vector3 wheelLoader, skidSteer;     // start positions (facing +Z)
             public Vector3 wheelPile, skidPile;        // pile centres on the ground
             public Vector3 container;                  // container centre on the ground
+            public Vector3 dozer, dozerPile;           // landfill dozer start (facing +Z) and the rubble it pushes
         }
 
         public static Layout Default() => new Layout
@@ -32,12 +33,16 @@ namespace DestructionLab
             wheelPile = new Vector3(41f, 0f, -23f),
             skidPile = new Vector3(48.5f, 0f, -22f),
             container = new Vector3(44.75f, 0f, -14f),
+            dozer = new Vector3(33f, 0f, -36f),
+            dozerPile = new Vector3(33f, 0f, -24f),
         };
 
         const int C = DestructionSettings.Concrete;
 
-        public static void AddDebris(List<PieceDef> list, Layout l)
+        public static void AddDebris(List<PieceDef> list, Layout l, bool dozer = false)
         {
+            // A wide, low windrow of rubble for the landfill dozer to push; not counted by the loaders' cleanup ledger.
+            if (dozer) Pile(list, l.dozerPile, "dozer pile", seed: 123, cells: 6, cellSize: 1.1f, min: 0.3f, max: 0.8f, layers2: 0.4f, prefix: "Dozer debris");
             Pile(list, l.wheelPile, "wheel pile", seed: 77, cells: 4, cellSize: 1.05f, min: 0.3f, max: 0.75f, layers2: 0.45f);
             // One block over every loader limit: needs the crusher or breaker, or the grapple's jaws.
             Loose(list, $"{DebrisPrefix} oversized wheel", l.wheelPile + new Vector3(2.9f, 0.5f, 1.2f), new Vector3(1.8f, 1.0f, 1.2f), C, 20f);
@@ -46,7 +51,7 @@ namespace DestructionLab
         }
 
         /// <summary>A jittered grid of chunks, some with a second chunk stacked on top. Same pile every reset.</summary>
-        static void Pile(List<PieceDef> l, Vector3 c, string tag, int seed, int cells, float cellSize, float min, float max, float layers2)
+        static void Pile(List<PieceDef> l, Vector3 c, string tag, int seed, int cells, float cellSize, float min, float max, float layers2, string prefix = DebrisPrefix)
         {
             var rng = new System.Random(seed);
             int n = 0;
@@ -59,11 +64,11 @@ namespace DestructionLab
                 Vector3 s = RandomSize(rng, min, max);
                 Vector3 p = c + new Vector3(origin + ix * cellSize + Jitter(rng, 0.1f), s.y * 0.5f + 0.02f, origin + iz * cellSize + Jitter(rng, 0.1f));
                 float yaw = (float)rng.NextDouble() * 90f;
-                Loose(l, $"{DebrisPrefix} {tag} {n++}", p, s, C, yaw);
+                Loose(l, $"{prefix} {tag} {n++}", p, s, C, yaw);
                 if (rng.NextDouble() < layers2)
                 {
                     Vector3 s2 = RandomSize(rng, min * 0.7f, max * 0.8f);
-                    Loose(l, $"{DebrisPrefix} {tag} {n++}", p + new Vector3(Jitter(rng, 0.1f), s.y * 0.5f + s2.y * 0.5f + 0.04f, Jitter(rng, 0.1f)), s2, C, (float)rng.NextDouble() * 90f);
+                    Loose(l, $"{prefix} {tag} {n++}", p +new Vector3(Jitter(rng, 0.1f), s.y * 0.5f + s2.y * 0.5f + 0.04f, Jitter(rng, 0.1f)), s2, C, (float)rng.NextDouble() * 90f);
                 }
             }
         }

@@ -19,6 +19,9 @@ namespace DestructionLab
         [Header("Loader yard (Tools/blender/WheelLoader, Tools/blender/SkidSteer)")]
         public GameObject wheelLoaderModel;
         public GameObject skidSteerModel;
+        [Tooltip("Landfill dozer FBX (Tools/blender/build_landfill_dozer.py). Starts at loaderSite.dozer facing a rubble windrow.")]
+        public GameObject dozerModel;
+        public DozerTuning dozerTuning = new DozerTuning();
         public LoaderTuning wheelLoaderTuning = LoaderTuning.WheelLoader();
         public LoaderTuning skidSteerTuning = LoaderTuning.SkidSteer();
         [Tooltip("Machine start positions, debris piles and the collection container. Machines start facing +Z.")]
@@ -52,6 +55,7 @@ namespace DestructionLab
         public CranePlayer Player { get; private set; }
         public readonly List<ExcavatorRig> Excavators = new List<ExcavatorRig>();
         public readonly List<LoaderRig> Loaders = new List<LoaderRig>();
+        public DozerRig Dozer { get; private set; }
         public CollectionContainer Container { get; private set; }
         public CleanupLedger Ledger { get; } = new CleanupLedger();
         public int SteelMaterial { get; private set; } = -1;
@@ -102,6 +106,7 @@ namespace DestructionLab
             else Debug.LogWarning("[DestructionLab] CraneTest has no excavator model assigned; run Destruction Lab/Build Crane Test Scene.");
 
             BuildLoaderYard(ground);
+            BuildDozer(ground);
 
             var cam = Camera.main;
             if (cam == null)
@@ -130,6 +135,7 @@ namespace DestructionLab
             Player.rigs.Add(craneOp);
             foreach (var rig in Excavators) Player.rigs.Add(rig);
             foreach (var rig in Loaders) Player.rigs.Add(rig);
+            if (Dozer != null) Player.rigs.Add(Dozer);
             Player.cam = cam;
             Player.world = World;
             Player.onReset = ResetAll;
@@ -153,6 +159,12 @@ namespace DestructionLab
                     text = $"EXCAVATOR  ·  {ExcavatorRig.AttachmentLabel(bay.kind).ToUpperInvariant()}",
                     onFootOnly = true,
                 });
+            }
+
+            if (Dozer != null)
+            {
+                panel.labels.Add(new RigControlsPanel.WorldLabel { position = loaderSite.dozerPile + Vector3.up * 2.4f, text = "RUBBLE  ·  landfill dozer", onFootOnly = true });
+                panel.labels.Add(new RigControlsPanel.WorldLabel { position = Vector3.up * 5.2f, text = "LANDFILL DOZER", onFootOnly = true, follow = Dozer.transform });
             }
 
             var loaderHud = playerGo.AddComponent<LoaderHud>();
@@ -196,7 +208,7 @@ namespace DestructionLab
                 {
                     var list = warehouse.build();
                     ExcavatorTestSite.AddTargets(list, bays, SteelMaterial);
-                    if (loaderYardEnabled) LoaderTestSite.AddDebris(list, loaderSite);
+                    if (loaderYardEnabled || dozerModel != null) LoaderTestSite.AddDebris(list, loaderSite, dozerModel != null);
                     return list;
                 },
                 postBuild = warehouse.postBuild,
@@ -215,6 +227,7 @@ namespace DestructionLab
             // Loaders let go of their load before the world is rebuilt, so no body is left held, and the ledger
             // restarts from the rebuilt debris.
             foreach (var rig in Loaders) rig.ResetPose();
+            if (Dozer != null) Dozer.ResetPose();
             World.Build(scenario);
             if (Container != null) Container.ResetState();
             Ledger.Reset(World, MaxLoadableKg());
@@ -247,6 +260,18 @@ namespace DestructionLab
             AddLoader(wheelLoaderModel, LoaderKind.Wheel, wheelLoaderTuning, loaderSite.wheelLoader, ground);
             AddLoader(skidSteerModel, LoaderKind.Skid, skidSteerTuning, loaderSite.skidSteer, ground);
             Ledger.Reset(World, MaxLoadableKg());
+        }
+
+        void BuildDozer(Collider ground)
+        {
+            if (dozerModel == null) return;
+            var go = new GameObject("Landfill Dozer", typeof(Rigidbody));
+            go.transform.SetPositionAndRotation(loaderSite.dozer, Quaternion.identity);
+            Dozer = go.AddComponent<DozerRig>();
+            Dozer.world = World;
+            Dozer.tuning = dozerTuning;
+            Dozer.Collision.ignore.Add(ground);
+            Dozer.Build(Instantiate(dozerModel));
         }
 
         void AddLoader(GameObject model, LoaderKind kind, LoaderTuning tuning, Vector3 position, Collider ground)

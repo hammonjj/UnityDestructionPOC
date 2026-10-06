@@ -107,7 +107,7 @@ namespace DestructionLab.Tests
         {
             Assert.AreEqual(2, boot.Loaders.Count);
             Assert.IsNotNull(boot.Container);
-            Assert.AreEqual(7, player.rigs.Count, "crane + 4 excavators + 2 loaders are enterable");
+            Assert.AreEqual(7 + (boot.Dozer != null ? 1 : 0), player.rigs.Count, "crane + 4 excavators + 2 loaders (+ dozer) are enterable");
             Assert.Greater(boot.Ledger.StagedMassKg, 1000f);
             Assert.AreEqual(2, boot.Ledger.OversizedPieces);
             foreach (var l in boot.Loaders)

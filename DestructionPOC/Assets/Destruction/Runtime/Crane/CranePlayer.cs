@@ -422,6 +422,6 @@ namespace DestructionLab
         }
 
         static string Label(IOperableRig r) =>
-            r is CraneOperable ? "crane" : r is LoaderRig ? r.RigName.ToLowerInvariant() : $"{r.RigName.ToLowerInvariant()} ({r.AttachmentName.ToLowerInvariant()})";
+            r is CraneOperable ? "crane" : r is LoaderRig || r is DozerRig ? r.RigName.ToLowerInvariant() : $"{r.RigName.ToLowerInvariant()} ({r.AttachmentName.ToLowerInvariant()})";
     }
 }
