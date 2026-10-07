@@ -77,5 +77,62 @@ namespace DestructionLab
             Physics.SyncTransforms();
             return after > before + tolerance;
         }
+
+        /// <summary>Colliders overlapping <paramref name="b"/> grown by <paramref name="pad"/> on every side, tested in the
+        /// box's own frame (the world AABB of a turned blade reaches well past its ends).</summary>
+        public static int OverlapBox(BoxCollider b, float pad, Collider[] into)
+        {
+            var t = b.transform;
+            Vector3 s = t.lossyScale;
+            Vector3 half = new Vector3(Mathf.Abs(s.x) * b.size.x, Mathf.Abs(s.y) * b.size.y, Mathf.Abs(s.z) * b.size.z) * 0.5f
+                           + new Vector3(pad, pad, pad);
+            return Physics.OverlapBoxNonAlloc(t.TransformPoint(b.center), half, into, t.rotation, ~0, QueryTriggerInteraction.Ignore);
+        }
+
+        static readonly Collider[] hop = new Collider[64];
+        readonly HashSet<Rigidbody> pushed = new HashSet<Rigidbody>();
+        readonly List<Collider> front = new List<Collider>();
+
+        /// <summary>Total mass (kg) of loose debris that <paramref name="mine"/> (box colliders) pushes along
+        /// <paramref name="forward"/>: every pushable body touching them plus, one contact further, the bodies those press
+        /// on ahead of them (the pile in front of a blade). Solid things are not counted; they block instead.</summary>
+        public float PushLoad(List<Collider> mine, Vector3 forward)
+        {
+            pushed.Clear();
+            front.Clear();
+            foreach (var c in mine)
+            {
+                if (!(c is BoxCollider box) || !c.enabled) continue;
+                int n = OverlapBox(box, 0.1f, probe);
+                for (int k = 0; k < n; k++)
+                {
+                    var rb = Loose(probe[k]);
+                    if (rb == null) continue;
+                    pushed.Add(rb);
+                    front.Add(probe[k]);
+                }
+            }
+            foreach (var f in front)
+            {
+                float ahead = Vector3.Dot(f.attachedRigidbody.worldCenterOfMass, forward);
+                var b = f.bounds;
+                int n = Physics.OverlapBoxNonAlloc(b.center, b.extents + new Vector3(0.05f, 0.05f, 0.05f), hop, Quaternion.identity, ~0, QueryTriggerInteraction.Ignore);
+                for (int k = 0; k < n; k++)
+                {
+                    var rb = Loose(hop[k]);
+                    if (rb != null && Vector3.Dot(rb.worldCenterOfMass, forward) > ahead) pushed.Add(rb);
+                }
+            }
+            float sum = 0f;
+            foreach (var rb in pushed) sum += rb.mass;
+            return sum;
+        }
+
+        Rigidbody Loose(Collider o)
+        {
+            if (own.Contains(o) || ignore.Contains(o)) return null;
+            var rb = o.attachedRigidbody;
+            return rb != null && !rb.isKinematic && rb.mass <= pushableMass ? rb : null;
+        }
     }
 }

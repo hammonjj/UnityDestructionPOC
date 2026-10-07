@@ -21,6 +21,18 @@ namespace DestructionLab
         public float liftAccel = 45f;
         [Tooltip("Largest blade angle above the lowered rest pose, degrees. From the model handoff.")] public float liftMaxAngle = 38f;
 
+        [Header("Pushing")]
+        [Tooltip("Debris mass ahead of the blade at which the dozer stalls, kg. Roughly its drawbar pull; a single body heavier than this is solid.")]
+        public float stallPushMass = 35000f;
+        [Tooltip("Debris mass the blade pushes without slowing, kg.")] public float freePushMass = 1500f;
+        [Tooltip("Top speed with a load just under the stall mass, m/s.")] public float crawlSpeed = 0.25f;
+
+        [Header("Ramming")]
+        [Tooltip("Direct damage to the structure piece the blade hits at top speed. Scales with the square of impact speed; 1 breaks a piece's joints.")]
+        public float ramDamage = 0.12f;
+        [Tooltip("Impacts slower than this do no damage, m/s.")] public float ramMinSpeed = 0.8f;
+        [Tooltip("Shortest time between two damaging impacts, s.")] public float ramCooldown = 0.5f;
+
         [Header("Gamepad")]
         [Tooltip("Response curve on stick input: 1 is linear, higher is gentler near the centre.")] [Range(1f, 2.5f)] public float stickExponent = 1.4f;
         public bool invertDrive, invertSteer, invertLift;
@@ -31,7 +43,8 @@ namespace DestructionLab
     /// for the node contract). A kinematic root moves like a crawler: left and right tracks run at separate speeds and
     /// the yaw rate is their difference, so it pivots in place. The blade (with its push arms and trash rack) lifts about
     /// the trunnion. Like the other machines the root is tested against the world with <see cref="RigCollision"/>:
-    /// solid structure blocks it, loose debris up to <see cref="RigCollision.pushableMass"/> is pushed ahead of the blade.
+    /// solid structure blocks it and loose debris is pushed ahead of the blade. The debris load slows the machine
+    /// (<see cref="DozerTuning.stallPushMass"/>), and hitting structure with the blade at speed damages it.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
     public sealed class DozerRig : MonoBehaviour, IOperableRig, ILevelRig
@@ -47,6 +60,10 @@ namespace DestructionLab
         public float Speed => (leftSpeed + rightSpeed) * 0.5f;
         public float YawRate { get; private set; }
         public int Blocked { get; private set; }
+        /// <summary>Loose debris mass the blade is pushing, kg.</summary>
+        public float PushLoad { get; private set; }
+        /// <summary>Damaging blade impacts on structure.</summary>
+        public int RamHits { get; private set; }
         public bool Parked { get; private set; }
         public Transform Edge { get; private set; }
         public Transform Chassis { get; private set; }
@@ -90,6 +107,8 @@ namespace DestructionLab
         float sprocketRadius = 0.45f, trackWidth = 2.6f;
         float leftSpeed, rightSpeed;
         float inDrive, inSteer, inLift;
+        float ramTimer;
+        static readonly Collider[] contacts = new Collider[64];
         Transform seat, door, cameraFocusAnchor;
         Transform[] exits = new Transform[0];
         Rigidbody body;
@@ -310,7 +329,7 @@ namespace DestructionLab
             into.Add(ControlHint.Row(input.Keys(input.LoaderLift), "Raise / lower blade"));
         }
 
-        public string Telemetry => $"Blade {lift.angle:0}°  (edge {EdgeHeight:0.00} m)";
+        public string Telemetry => $"Blade {lift.angle:0}°  (edge {EdgeHeight:0.00} m)  push {PushLoad / 1000f:0.0} t";
 
         // ------------------------------------------------------------------ simulation
 
@@ -324,7 +343,8 @@ namespace DestructionLab
         {
             if (body == null) return;
             float dt = Time.fixedDeltaTime;
-            if (Parked) { leftSpeed = rightSpeed = 0f; YawRate = 0f; return; }
+            ramTimer = Mathf.Max(0f, ramTimer - dt);
+            if (Parked) { leftSpeed = rightSpeed = 0f; YawRate = 0f; PushLoad = 0f; return; }
 
             // Arcade mix: steering adds to one track and subtracts from the other, then scales down to stay in range.
             Vector3 pos = body.position;
@@ -332,8 +352,20 @@ namespace DestructionLab
             float scale = inDrive < 0f ? tuning.reverseScale : 1f;
             float l = inDrive * scale + inSteer * tuning.turnMix, r = inDrive * scale - inSteer * tuning.turnMix;
             float m = Mathf.Max(1f, Mathf.Max(Mathf.Abs(l), Mathf.Abs(r)));
-            leftSpeed = Approach(leftSpeed, l / m * tuning.maxSpeed, tuning.accel, tuning.brake, dt);
-            rightSpeed = Approach(rightSpeed, r / m * tuning.maxSpeed, tuning.accel, tuning.brake, dt);
+            float lt = l / m * tuning.maxSpeed, rt = r / m * tuning.maxSpeed;
+
+            // The load on the blade caps forward speed: full speed up to freePushMass, a crawl near stallPushMass and a
+            // stall past it. Reversing and pivoting are never capped, so a stalled machine can always back out.
+            Collision.pushableMass = tuning.stallPushMass; // anything lighter is pushed; one body past the stall is solid
+            PushLoad = Collision.PushLoad(bladeColliders, transform.forward);
+            float fwd = (lt + rt) * 0.5f, top = TopSpeedUnderLoad(PushLoad);
+            if (fwd > top)
+            {
+                lt *= top / fwd;
+                rt *= top / fwd;
+            }
+            leftSpeed = Approach(leftSpeed, lt, tuning.accel, tuning.brake, dt);
+            rightSpeed = Approach(rightSpeed, rt, tuning.accel, tuning.brake, dt);
             float v = (leftSpeed + rightSpeed) * 0.5f;
             YawRate = (leftSpeed - rightSpeed) / trackWidth * Mathf.Rad2Deg; // + clockwise from above (turning right)
             if (Mathf.Abs(v) < 1e-4f && Mathf.Abs(YawRate) < 1e-3f) return;
@@ -342,6 +374,7 @@ namespace DestructionLab
             rot = rot2;
             if (Collision.MoveBlocked(transform, body, ownColliders, pos, rot))
             {
+                if (v >= tuning.ramMinSpeed) RamImpact(v);
                 leftSpeed = rightSpeed = 0f;
                 YawRate = 0f;
                 Blocked++;
@@ -351,6 +384,49 @@ namespace DestructionLab
                 body.MoveRotation(rot);
                 body.MovePosition(pos);
             }
+        }
+
+        /// <summary>Forward speed limit (m/s) with <paramref name="load"/> kg of debris on the blade. Square-root falloff, so
+        /// a full blade already slows the machine well before the stall.</summary>
+        public float TopSpeedUnderLoad(float load)
+        {
+            if (load <= tuning.freePushMass) return tuning.maxSpeed;
+            if (load >= tuning.stallPushMass) return 0f;
+            float t = Mathf.InverseLerp(tuning.freePushMass, tuning.stallPushMass, load);
+            return Mathf.Lerp(tuning.maxSpeed, tuning.crawlSpeed, Mathf.Sqrt(t));
+        }
+
+        /// <summary>The blade hit something solid at <paramref name="speed"/> m/s: damage the structure piece nearest the
+        /// cutting edge, scaled like impact energy, at most once per <see cref="DozerTuning.ramCooldown"/>.</summary>
+        void RamImpact(float speed)
+        {
+            if (ramTimer > 0f || world == null || world.Graph == null) return;
+            int best = -1;
+            float bestD = float.MaxValue;
+            Vector3 edge = Edge.position;
+            foreach (var c in bladeColliders)
+            {
+                if (!(c is BoxCollider box)) continue;
+                int n = RigCollision.OverlapBox(box, 0.15f, contacts);
+                for (int k = 0; k < n; k++)
+                {
+                    var o = contacts[k];
+                    if (!Collision.Blocks(o) || !world.TryGetPiece(o, out int i)) continue;
+                    if (i < 0 || i >= world.Graph.PieceCount || world.pieces[i] == null || world.pieces[i].removed) continue;
+                    if (world.Settings.Material(world.Graph.pieces[i].material).name == ExcavatorTestSite.SteelName) continue;
+                    float d = (o.ClosestPoint(edge) - edge).sqrMagnitude;
+                    if (d < bestD)
+                    {
+                        bestD = d;
+                        best = i;
+                    }
+                }
+            }
+            if (best < 0) return;
+            float f = Mathf.Clamp01(speed / tuning.maxSpeed);
+            world.Damage(best, tuning.ramDamage * f * f);
+            ramTimer = tuning.ramCooldown;
+            RamHits++;
         }
 
         void LateUpdate()
@@ -432,6 +508,8 @@ namespace DestructionLab
             foreach (var s in sprockets) s.angle = 0f;
             SetPose(0f);
             Blocked = 0;
+            RamHits = 0;
+            ramTimer = 0f;
             Physics.SyncTransforms();
         }
     }
