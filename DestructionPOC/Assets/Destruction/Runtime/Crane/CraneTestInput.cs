@@ -82,7 +82,7 @@ namespace DestructionLab
             Run = Button(onFoot, "Run", "<Keyboard>/leftShift", "<Gamepad>/leftStickPress");
             Jump = Button(onFoot, "Jump", "<Keyboard>/space", "<Gamepad>/buttonSouth");
             Interact = Button(onFoot, "Interact", "<Keyboard>/e", "<Gamepad>/buttonWest");
-            // First-person view only (the overhead camera has no look).
+            // First- and third-person views only (the overhead camera has no look).
             LookMouse = onFoot.AddAction("LookMouse", InputActionType.Value, "<Mouse>/delta", groups: KeyboardMouse, expectedControlLayout: "Vector2");
             LookStick = onFoot.AddAction("LookStick", InputActionType.Value, "<Gamepad>/rightStick", groups: Gamepad, expectedControlLayout: "Vector2");
 

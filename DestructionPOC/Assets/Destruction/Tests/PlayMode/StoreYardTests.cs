@@ -366,6 +366,61 @@ namespace DestructionLab.Tests
         }
 
         [UnityTest]
+        public IEnumerator ViewKeyCyclesOverheadFirstPersonNearAndFarThirdPerson()
+        {
+            var cam = player.cam;
+            Vector3 Pivot() => player.transform.position + Vector3.up * 1.6f;
+            Assert.AreEqual(CranePlayer.CameraView.Overhead, player.View);
+
+            yield return Tap(Key.V);
+            Assert.AreEqual(CranePlayer.CameraView.FirstPerson, player.View);
+            Assert.IsFalse(player.overhead.enabled, "overhead camera off in first person");
+
+            yield return Tap(Key.V);
+            Assert.AreEqual(CranePlayer.CameraView.ThirdPersonNear, player.View);
+            yield return null;
+            float near = Vector3.Distance(cam.transform.position, Pivot());
+            Assert.LessOrEqual(near, player.thirdPersonNear + 0.05f, "near view sits at most the near distance back");
+            Assert.Greater(near, 0.25f, "camera is out of the head");
+            Assert.Greater(Vector3.Dot(cam.transform.forward, (Pivot() - cam.transform.position).normalized), 0.99f, "camera looks at the character");
+            if (player.avatar != null) Assert.IsTrue(player.avatar.activeSelf, "body visible in third person");
+
+            // W walks away from the camera.
+            Vector3 camFlat = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up).normalized;
+            Vector3 start = player.transform.position;
+            InputSystem.QueueStateEvent(kb, new KeyboardState(Key.W));
+            yield return new WaitForSeconds(0.6f);
+            InputSystem.QueueStateEvent(kb, new KeyboardState());
+            yield return null;
+            Vector3 moved = Vector3.ProjectOnPlane(player.transform.position - start, Vector3.up);
+            Assert.Greater(Vector3.Dot(moved, camFlat), 1f, "W is camera-relative");
+
+            yield return Tap(Key.V);
+            Assert.AreEqual(CranePlayer.CameraView.ThirdPersonFar, player.View);
+            yield return new WaitForSeconds(0.5f);
+            float far = Vector3.Distance(cam.transform.position, Pivot());
+            Assert.LessOrEqual(far, player.thirdPersonFar + 0.05f);
+            Assert.Greater(far, near + 0.5f, "far view sits further back than the near view");
+
+            // Operating a machine pulls the camera further out, behind the seat.
+            var rig = (IOperableRig)level.SkidSteer;
+            StandAtDoor(rig);
+            yield return null;
+            yield return Tap(Key.E);
+            Assert.AreSame(rig, player.Current);
+            yield return null;
+            float inRig = Vector3.Distance(cam.transform.position, rig.SeatPosition + Vector3.up * 1.2f);
+            Assert.Greater(inRig, player.thirdPersonFar * 0.5f, "camera outside the cab");
+            Assert.LessOrEqual(inRig, player.thirdPersonFar * player.rigDistanceScale + 0.05f);
+            yield return Tap(Key.E);
+            Assert.IsNull(player.Current);
+
+            yield return Tap(Key.V);
+            Assert.AreEqual(CranePlayer.CameraView.Overhead, player.View, "cycles back to overhead");
+            Assert.IsTrue(player.overhead.enabled);
+        }
+
+        [UnityTest]
         public IEnumerator SkidSteerAndDozerDriveAcrossTheLotAndTheCraneSlews()
         {
             foreach (var rig in new MonoBehaviour[] { level.SkidSteer, level.Dozer })

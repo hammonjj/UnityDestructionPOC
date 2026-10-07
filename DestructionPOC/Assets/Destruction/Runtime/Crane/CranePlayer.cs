@@ -118,13 +118,29 @@ namespace DestructionLab
         [Tooltip("How fast the character turns to face its movement direction (deg/s).")]
         public float faceTurnSpeed = 720f;
 
+        [Header("Third-person cameras")]
+        [Tooltip("Camera distance behind the character in the near third-person view (m).")]
+        public float thirdPersonNear = 4f;
+        [Tooltip("Camera distance behind the character in the far third-person view (m).")]
+        public float thirdPersonFar = 9f;
+        [Tooltip("Both distances are multiplied by this while operating a machine, which is far bigger than the character.")]
+        public float rigDistanceScale = 2.2f;
+        public float thirdPersonFieldOfView = 60f;
+
+        /// <summary>The camera views the view button cycles through, in order.</summary>
+        public enum CameraView { Overhead, FirstPerson, ThirdPersonNear, ThirdPersonFar }
+
         /// <summary>The rig being operated, or null on foot.</summary>
         public IOperableRig Current { get; private set; }
         public bool InCab => Current != null;
         public CraneTestInput Input { get; private set; }
+        /// <summary>The chosen view. Only meaningful when an overhead camera exists; without one the view is first person.</summary>
+        public CameraView View { get; private set; }
         /// <summary>True while the first-person view is chosen. Only meaningful when an overhead camera exists.</summary>
-        public bool FirstPerson { get; private set; }
-        bool Overhead => overhead != null && !FirstPerson;
+        public bool FirstPerson => View == CameraView.FirstPerson;
+        bool ThirdPerson => overhead != null && (View == CameraView.ThirdPersonNear || View == CameraView.ThirdPersonFar);
+        bool Overhead => overhead != null && View == CameraView.Overhead;
+        bool FirstPersonView => !Overhead && !ThirdPerson;
 
         CharacterController cc;
         float yaw, pitch, vy, relYaw;
@@ -171,30 +187,77 @@ namespace DestructionLab
         /// <summary>Re-frame instantly after a scene reset or respawn.</summary>
         public void SnapCamera()
         {
+            if (ThirdPerson) thirdPersonDistance = -1f;
             if (!Overhead) return;
             UpdateFocus();
             overhead.Snap();
         }
 
-        /// <summary>Swap between the overhead camera and the first-person view.</summary>
-        public void ToggleView()
+        /// <summary>Step to the next view: overhead, first person, near third person, far third person, then overhead again.</summary>
+        public void CycleView() => SetView((CameraView)(((int)View + 1) % 4));
+
+        public void SetView(CameraView view)
         {
             if (overhead == null) return;
-            FirstPerson = !FirstPerson;
-            overhead.enabled = !FirstPerson;
-            if (FirstPerson)
+            bool wasOverhead = Overhead;
+            View = view;
+            overhead.enabled = Overhead;
+            if (Overhead) overhead.Snap();
+            else
             {
                 cam.orthographic = false;
-                cam.fieldOfView = 70f;
-                cam.nearClipPlane = 0.05f;
+                cam.fieldOfView = ThirdPerson ? thirdPersonFieldOfView : 70f;
+                cam.nearClipPlane = ThirdPerson ? 0.2f : 0.05f;
                 cam.farClipPlane = 600f;
-                // Face the way the body faces, so the view does not jump.
-                yaw = transform.eulerAngles.y;
-                pitch = 0f;
+                if (wasOverhead)
+                {
+                    // Face the way the body faces, so the view does not jump.
+                    yaw = transform.eulerAngles.y;
+                    pitch = ThirdPerson ? ThirdPersonPitch : 0f;
+                }
+                thirdPersonDistance = -1f;
             }
-            else overhead.Snap();
             if (avatar != null) avatar.SetActive(!FirstPerson && Current == null);
-            SetCursor(FirstPerson);
+            SetCursor(!Overhead);
+        }
+
+        // ------------------------------------------------------------------ third person
+
+        const float ThirdPersonPitch = 15f;
+        float thirdPersonDistance = -1f;   // current, pulled in by obstacles; < 0 = snap to the wanted distance
+        readonly RaycastHit[] cameraHits = new RaycastHit[16];
+
+        /// <summary>Orbit the camera behind the character, or behind the seat while operating a machine.</summary>
+        void PlaceThirdPersonCamera()
+        {
+            float wanted = View == CameraView.ThirdPersonFar ? thirdPersonFar : thirdPersonNear;
+            Vector3 pivot;
+            if (Current != null)
+            {
+                wanted *= rigDistanceScale;
+                pivot = Current.SeatPosition + Vector3.up * 1.2f;
+            }
+            else pivot = transform.position + Vector3.up * 1.6f;
+
+            Quaternion rot = Quaternion.Euler(pitch, yaw, 0f);
+            Vector3 back = rot * Vector3.back;
+            // Pull in in front of walls and the ground, but not for the machine you are in, the character or loose debris.
+            float d = wanted;
+            const float radius = 0.25f;
+            int n = Physics.SphereCastNonAlloc(pivot, radius, back, cameraHits, wanted, ~0, QueryTriggerInteraction.Ignore);
+            var rigRoot = (Current as Component)?.transform;
+            for (int i = 0; i < n; i++)
+            {
+                var h = cameraHits[i];
+                var c = h.collider;
+                if (c == cc || h.distance <= 0f) continue;
+                if (rigRoot != null && c.transform.IsChildOf(rigRoot)) continue;
+                if (c.attachedRigidbody != null && !c.attachedRigidbody.isKinematic) continue;
+                d = Mathf.Min(d, Mathf.Max(0.3f, h.distance));
+            }
+            // Snap in at once so walls never block the view; ease back out.
+            thirdPersonDistance = thirdPersonDistance < 0f || d < thirdPersonDistance ? d : Mathf.MoveTowards(thirdPersonDistance, d, 12f * Time.deltaTime);
+            cam.transform.SetPositionAndRotation(pivot + back * thirdPersonDistance, rot);
         }
 
         void UpdateFocus()
@@ -239,7 +302,7 @@ namespace DestructionLab
             var mouse = Mouse.current;
             Input.PollDevice();
 
-            if (allowViewToggle && overhead != null && Input.ToggleView.WasPressedThisFrame()) ToggleView();
+            if (allowViewToggle && overhead != null && Input.ToggleView.WasPressedThisFrame()) CycleView();
 
             if (!Overhead)
             {
@@ -308,7 +371,8 @@ namespace DestructionLab
             // In a cab the view is relative to the seat, so it turns with the machine and only head-turns are input.
             if (Current != null) relYaw = Mathf.Clamp(relYaw + dx, -110f, 110f);
             else yaw += dx;
-            pitch = Mathf.Clamp(pitch - dy, -80f, 80f);
+            // Third person stops short of looking up from under the ground.
+            pitch = Mathf.Clamp(pitch - dy, ThirdPerson ? -30f : -80f, ThirdPerson ? 75f : 80f);
         }
 
         void Walk()
@@ -317,11 +381,18 @@ namespace DestructionLab
             bool run = Input.Run.IsPressed();
 
             Vector3 v;
-            if (Overhead)
+            if (Overhead || ThirdPerson)
             {
                 // Screen-relative: up = toward the top of the screen, right = toward the right. Facing follows motion
                 // and never feeds back into movement or the camera.
-                overhead.GroundAxes(out Vector3 up, out Vector3 right);
+                Vector3 up, right;
+                if (Overhead) overhead.GroundAxes(out up, out right);
+                else
+                {
+                    Quaternion q = Quaternion.Euler(0f, yaw, 0f);
+                    up = q * Vector3.forward;
+                    right = q * Vector3.right;
+                }
                 Vector3 dir = right * move.x + up * move.y;
                 v = dir * (run ? runSpeed : walkSpeed);
                 if (dir.sqrMagnitude > 0.0001f)
@@ -339,7 +410,7 @@ namespace DestructionLab
             v.y = vy;
             cc.Move(v * Time.deltaTime);
 
-            if (!Overhead) cam.transform.SetPositionAndRotation(transform.position + Vector3.up * 1.62f, Quaternion.Euler(pitch, yaw, 0f));
+            if (FirstPersonView) cam.transform.SetPositionAndRotation(transform.position + Vector3.up * 1.62f, Quaternion.Euler(pitch, yaw, 0f));
         }
 
         void LateUpdate()
@@ -350,9 +421,10 @@ namespace DestructionLab
                 if (!Overhead)
                 {
                     yaw = Current.SeatRotation.eulerAngles.y + relYaw;
-                    cam.transform.SetPositionAndRotation(Current.SeatPosition, Quaternion.Euler(pitch, yaw, 0f));
+                    if (FirstPersonView) cam.transform.SetPositionAndRotation(Current.SeatPosition, Quaternion.Euler(pitch, yaw, 0f));
                 }
             }
+            if (ThirdPerson && !PauseMenu.IsPaused) PlaceThirdPersonCamera();
             UpdateFocus();
             ApplyShake();
         }
@@ -416,7 +488,8 @@ namespace DestructionLab
             cc.enabled = false;
             vy = 0f;
             relYaw = 0f;
-            pitch = 0f;
+            pitch = ThirdPerson ? ThirdPersonPitch : 0f;
+            thirdPersonDistance = -1f;
             rig.OnEnter();
             CabGlass.SetOperatorInside(rig as Component, true);
             Input.SetContext(rig.ControlMap(Input));
@@ -432,6 +505,7 @@ namespace DestructionLab
             transitionFrame = Time.frameCount;
             Input.SetContext(null);
             PlaceAt(SafeExit(rig));
+            thirdPersonDistance = -1f;
             if (avatar != null) avatar.SetActive(!FirstPerson);
             if (Overhead) overhead.Snap();
         }
@@ -512,16 +586,19 @@ namespace DestructionLab
             }
             text += $"\nRespawn vehicle {Input.Keys(Input.RespawnVehicle, pad)}    Respawn player {Input.Keys(Input.RespawnPlayer, pad)}";
             text += $"    Reset all {Input.Keys(Input.Reset, pad)}" + (Overhead ? "" : "    Mouse unlock Esc");
-            if (overhead != null && allowViewToggle) text += $"    View {Input.Keys(Input.ToggleView, pad)} ({(FirstPerson ? "first person" : "overhead")})";
+            if (overhead != null && allowViewToggle) text += $"    View {Input.Keys(Input.ToggleView, pad)} ({ViewName(View)})";
 
             var view = GuiRect;
             GUI.BeginGroup(view);
             var r = new Rect(16f, 12f, Mathf.Min(900f, view.width - 32f), 260f);
             GUI.Label(new Rect(r.x + 1f, r.y + 1f, r.width, r.height), text, shadow);
             GUI.Label(r, text, style);
-            if (!Overhead) GUI.Label(new Rect(view.width * 0.5f - 4f, view.height * 0.5f - 4f, 8f, 8f), "·", style);
+            if (FirstPersonView) GUI.Label(new Rect(view.width * 0.5f - 4f, view.height * 0.5f - 4f, 8f, 8f), "·", style);
             GUI.EndGroup();
         }
+
+        static string ViewName(CameraView v) =>
+            v == CameraView.FirstPerson ? "first person" : v == CameraView.ThirdPersonNear ? "third person" : v == CameraView.ThirdPersonFar ? "third person, far" : "overhead";
 
         static string Label(IOperableRig r) =>
             r is CraneOperable ? "crane" : r is LoaderRig || r is DozerRig ? r.RigName.ToLowerInvariant() : $"{r.RigName.ToLowerInvariant()} ({r.AttachmentName.ToLowerInvariant()})";
