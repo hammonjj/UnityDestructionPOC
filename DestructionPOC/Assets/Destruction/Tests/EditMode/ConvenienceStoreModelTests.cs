@@ -24,7 +24,7 @@ namespace DestructionLab.Tests
                 var result = StructureImporter.Read(instance, DestructionSettings.CreateDefault());
                 Assert.IsFalse(result.HasErrors, string.Join("\n", result.issues));
                 Assert.AreEqual(0, result.Skipped);
-                Assert.AreEqual(232, result.pieces.Count);
+                Assert.AreEqual(215, result.pieces.Count);
                 Assert.That(result.pieces.Min(p => p.center.y - p.size.y * 0.5f), Is.EqualTo(0f).Within(1e-3f), "sits on y = 0");
             }
             finally
@@ -44,9 +44,10 @@ namespace DestructionLab.Tests
                 var paving = pieces.Where(p => !CleanupLedger.CountsAsBuilding(p)).ToList();
                 Assert.AreEqual(24, paving.Count, "sidewalk, curbs, pump island and wheel stops");
                 Assert.IsTrue(paving.All(p => p.name.StartsWith("Slab_")), string.Join(", ", paving.Select(p => p.name)));
-                Assert.AreEqual(208, pieces.Count - paving.Count);
-                // Cars, poles, signs and the boundary are part of the building.
-                foreach (string name in new[] { "Car_A_Body", "Post_Light0", "Sign_PylonCabinet", "Wall_BoundaryN0", "Roof_00", "Dumpster_Body" })
+                Assert.AreEqual(191, pieces.Count - paving.Count);
+                // Cars, poles, signs, the boundary and fire debris lying on the ground are part of the building.
+                foreach (string name in new[] { "Car_A_Body", "Car_A_Wheel0", "Post_Light0", "Sign_PylonCabinet", "Wall_BoundaryN0",
+                             "Roof_00", "Roof_Fallen0", "Dumpster_Body", "Slab_PumpCanopyFallen", "Fascia_Fallen" })
                     Assert.IsTrue(pieces.Any(p => p.name.StartsWith(name) && CleanupLedger.CountsAsBuilding(p)), name);
             }
             finally

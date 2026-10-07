@@ -1,12 +1,14 @@
-"""Author the fire-ravaged convenience-store lot: the same store after a fire, fenced off awaiting demolition.
+"""Author the fire-ravaged convenience-store lot: the same store after a fire, awaiting demolition.
 
 Run headless from the repo root:
 
     /Applications/Blender.app/Contents/MacOS/Blender --background \
         --python Tools/blender/build_burned_store.py
 
-Writes Tools/blender/BurnedStore/BurnedStore.blend and Tools/blender/BurnedStore/BurnedStore.fbx.
-The FBX is not copied into the Unity project yet; nothing references this level.
+Writes Tools/blender/BurnedStore/BurnedStore.blend and DestructionPOC/Assets/Destruction/Models/ConvenienceStore.fbx,
+the model the ConvenienceStore level reads. This replaced the intact store (build_convenience_store.py).
+The roll-off container in the Demolition collection is for the preview renders only and is not exported:
+the level has its own roll-off container (CollectionContainer).
 
 Starts from the layout in build_convenience_store.py (Blender Z-up, metres, lot x -25..25, y -20..20).
 The fire started in the back-of-house at the east end of the store, so damage grows from west to east:
@@ -19,7 +21,7 @@ The fire started in the back-of-house at the east end of the store, so damage gr
   * Inside, an east shelf and a cooler toppled, and the fallen roof slabs lie on them and the floor.
   * The fire spread across the whole lot. The pump canopy lost its north-east bay and the fascia on
     it, a pump hood fell off, the pylon price panel burned away, timber fence panels burned down, the
-    enclosure gate fell and the dumpster lid is gone. Car_A and Car_C burned where they were parked
+    enclosure lost a gate leaf and the dumpster lost its lid. Car_A and Car_C burned where they were parked
     and sit on their rims; the other cars are gone.
   * A roll-off container, already half full of debris, stands in front of the store. It arrived after
     the fire, so it is the only thing on the lot that is not burnt.
@@ -39,7 +41,8 @@ from mathutils import Vector
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT_DIR = os.path.join(REPO, "Tools", "blender", "BurnedStore")
 BLEND_PATH = os.path.join(OUT_DIR, "BurnedStore.blend")
-FBX_PATH = os.path.join(OUT_DIR, "BurnedStore.fbx")
+FBX_PATH = os.path.join(REPO, "DestructionPOC", "Assets", "Destruction", "Models", "ConvenienceStore.fbx")
+EXPORT_SKIP = {"Demolition"}  # collections kept out of the FBX
 
 PIECES = []
 COLL = {}
@@ -217,14 +220,15 @@ def build_pumps():
         if j == 0:
             box(G, f"Fascia_E{j}__wood", 13.8, 14.0, ya, yb, zf, zf + 0.6)
     box(G, "Slab_PumpCanopyFallen__concrete", 9.6, 12.6, 3.2, 5.6, 0, 0.4)
-    box(G, "Fascia_Fallen__wood", 10.0, 12.6, 5.7, 6.3, 0, 0.2)
+    box(G, "Fascia_Fallen__wood", 10.0, 12.6, 5.7, 6.3, 0, 0.3)
 
 
 def car(name, cx, cy, axis, burnt=False):
     G = "Cars"
     L, W = 4.2, 1.75
     # a burnt-out car has lost its tyres and sits low on its rims
-    zw, zb, zc = (0.25, 0.75, 1.25) if burnt else (0.4, 0.95, 1.5)
+    # (rims stay above 0.25 m so the cleanup gauge counts them as wreckage, not paving)
+    zw, zb, zc = (0.3, 0.8, 1.3) if burnt else (0.4, 0.95, 1.5)
 
     def cb(sub, u0, u1, v0, v1, z0, z1):
         if axis == "x":
@@ -286,7 +290,6 @@ def build_site():
     box(G, "Post_GateW__concrete", -23.0, -22.7, 13.5, 13.8, 0, 2.0)
     box(G, "Post_GateE__concrete", -19.3, -19.0, 13.5, 13.8, 0, 2.0)
     box(G, "Gate_Leaf0__wood", -22.7, -21.0, 13.5, 13.6, 0, 1.8)
-    box(G, "Gate_LeafFallen1__wood", -21.0, -19.3, 11.7, 13.5, 0, 0.1)  # burned off its hinges
     box(G, "Dumpster_Body__wood", -22.4, -20.2, 14.6, 16.4, 0, 1.2)  # lid burned off
 
     # plastic bins slumped in the heat
@@ -503,9 +506,10 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
 
     bpy.ops.object.select_all(action="DESELECT")
-    for p in PIECES:
+    exported = [p for p in PIECES if p.users_collection[0].name not in EXPORT_SKIP]
+    for p in exported:
         p.select_set(True)
-    bpy.context.view_layer.objects.active = PIECES[0]
+    bpy.context.view_layer.objects.active = exported[0]
     bpy.ops.export_scene.fbx(
         filepath=FBX_PATH, use_selection=True, apply_unit_scale=True, global_scale=1.0,
         apply_scale_options="FBX_SCALE_NONE", bake_space_transform=False, object_types={"MESH"},
@@ -523,7 +527,7 @@ def main():
             for k in range(3):
                 lo[k] = min(lo[k], w[k])
                 hi[k] = max(hi[k], w[k])
-    print(f"[burned] {len(PIECES)} pieces; extent x {hi[0]-lo[0]:.1f} y {hi[1]-lo[1]:.1f} z {hi[2]-lo[2]:.1f}; ground z {lo[2]:.3f}")
+    print(f"[burned] {len(PIECES)} pieces, {len(exported)} exported; extent x {hi[0]-lo[0]:.1f} y {hi[1]-lo[1]:.1f} z {hi[2]-lo[2]:.1f}; ground z {lo[2]:.3f}")
     for g, c in COLL.items():
         print(f"[burned]   {g}: {len(c.objects)}")
 

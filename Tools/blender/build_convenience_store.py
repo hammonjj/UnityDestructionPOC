@@ -5,8 +5,9 @@ Run headless from the repo root:
     /Applications/Blender.app/Contents/MacOS/Blender --background \
         --python Tools/blender/build_convenience_store.py
 
-Writes Tools/blender/ConvenienceStore/ConvenienceStore.blend and
-DestructionPOC/Assets/Destruction/Models/ConvenienceStore.fbx.
+Writes Tools/blender/ConvenienceStore/ConvenienceStore.blend and Tools/blender/ConvenienceStore/ConvenienceStore.fbx.
+This is the intact store. The level now uses the fire-ravaged version from build_burned_store.py, which
+writes DestructionPOC/Assets/Destruction/Models/ConvenienceStore.fbx.
 
 Layout (Blender Z-up, metres). Lot x in [-25, 25], y in [-20, 20]; the street is the south (-y) edge.
   * Store 12 x 8 m at x -16..-4, y 10..18, storefront facing south, 4 m walls, flat roof with parapet.
@@ -30,7 +31,7 @@ from mathutils import Vector
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT_DIR = os.path.join(REPO, "Tools", "blender", "ConvenienceStore")
 BLEND_PATH = os.path.join(OUT_DIR, "ConvenienceStore.blend")
-FBX_PATH = os.path.join(REPO, "DestructionPOC", "Assets", "Destruction", "Models", "ConvenienceStore.fbx")
+FBX_PATH = os.path.join(OUT_DIR, "ConvenienceStore.fbx")
 
 PIECES = []
 COLL = {}
