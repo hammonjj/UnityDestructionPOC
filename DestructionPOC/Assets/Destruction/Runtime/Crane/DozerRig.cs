@@ -47,7 +47,7 @@ namespace DestructionLab
     /// (<see cref="DozerTuning.stallPushMass"/>), and hitting structure with the blade at speed damages it.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class DozerRig : MonoBehaviour, IOperableRig, ILevelRig
+    public sealed class DozerRig : MonoBehaviour, IOperableRig, ILevelRig, IMachineSound
     {
         public DozerTuning tuning = new DozerTuning();
         public DestructionWorld world;
@@ -433,7 +433,16 @@ namespace DestructionLab
             world.Damage(best, tuning.ramDamage * f * f);
             ramTimer = tuning.ramCooldown;
             RamHits++;
+            Sfx.PlayAt("metal_impact_heavy", Edge.position, 0.4f + 0.5f * f, 1.1f, 0.3f, 8f, 140f);
+            Sfx.PlayAt("concrete_hit", Edge.position, 0.4f + 0.5f * f, 0.9f, 0.1f);
         }
+
+        // ------------------------------------------------------------------ sound
+
+        public MachineSoundProfile SoundProfile => new MachineSoundProfile { tracked = true, workLoop = "hydraulic_move_loop" };
+        public float DriveActivity => Mathf.Max(Mathf.Abs(leftSpeed), Mathf.Abs(rightSpeed)) / tuning.maxSpeed
+                                      + Mathf.Clamp01(PushLoad / tuning.stallPushMass) * 0.5f;
+        public float WorkActivity => Mathf.Abs(lift.vel) / tuning.liftSpeed;
 
         void LateUpdate()
         {

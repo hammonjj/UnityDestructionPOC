@@ -19,7 +19,7 @@ namespace DestructionLab
     /// than cutting a mesh; the machine is kinematic, so it drives through static structure like the crane does.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class ExcavatorRig : MonoBehaviour, IOperableRig, ILevelRig
+    public sealed class ExcavatorRig : MonoBehaviour, IOperableRig, ILevelRig, IMachineSound
     {
         public ExcavatorAttachment attachment;
         public DestructionWorld world;
@@ -625,6 +625,23 @@ namespace DestructionLab
             }
         }
 
+        // ------------------------------------------------------------------ sound
+
+        public MachineSoundProfile SoundProfile => new MachineSoundProfile { tracked = true, workLoop = "hydraulic_move_loop" };
+        public float DriveActivity => Mathf.Max(Mathf.Abs(driveVel) / driveSpeed, Mathf.Abs(turnVel) / turnSpeed);
+
+        public float WorkActivity
+        {
+            get
+            {
+                float a = Mathf.Max(Mathf.Abs(swing.vel) / swingSpeed, Mathf.Abs(boom.vel) / boomSpeed,
+                    Mathf.Abs(stick.vel) / stickSpeed, Mathf.Abs(curl.vel) / curlSpeed);
+                // Jaws working, or the breaker's hydraulics running, load the pump too.
+                if (Hammering || squeeze > 0f) a = Mathf.Max(a, 0.8f);
+                return Mathf.Max(a, Mathf.Clamp01(Mathf.Abs(inClose - inOpen)) * 0.6f);
+            }
+        }
+
         // ------------------------------------------------------------------ simulation
 
         static float Approach(float v, float target, float accel, float dt)
@@ -797,6 +814,8 @@ namespace DestructionLab
                     squeeze = 0f;
                     world.Damage(target, crushDamage);
                     Bites++;
+                    Sfx.PlayAt("concrete_hit", WorkPoint.position, 0.8f, 0.9f, 0.1f);
+                    Sfx.PlayAt("hydraulic_release", WorkPoint.position, 0.35f, 1f, 0.6f, 4f, 60f);
                 }
             }
             else squeeze = 0f;
@@ -808,12 +827,15 @@ namespace DestructionLab
             bool stalled = MoveJaws(cmd, target >= 0 ? cutContactClosure : 1f, dt);
             if (target >= 0 && cmd > 0.1f && stalled)
             {
+                // The steel groans as the blades bite into it.
+                if (squeeze == 0f) Sfx.PlayAt("metal_groan_stress", WorkPoint.position, 0.4f, 1.2f, 1.5f, 5f, 80f);
                 squeeze += dt * Mathf.Clamp01(cmd);
                 if (squeeze >= cutTime)
                 {
                     squeeze = 0f;
                     world.Sever(world.Graph.adjacency[target]);
                     Cuts++;
+                    Sfx.PlayAt("metal_shear_tear_short", WorkPoint.position, 0.9f, 1f, 0.3f, 8f, 140f);
                 }
             }
             else squeeze = 0f;
@@ -839,10 +861,13 @@ namespace DestructionLab
             {
                 Strikes++;
                 int target = FindPieceSphere(WorkPoint.position, strikeRadius, BreakablePiece);
+                // The bit clanks on every stroke; on concrete the stroke also cracks it.
+                Sfx.PlayAt("metal_impact", WorkPoint.position, target >= 0 ? 0.45f : 0.3f, 1.5f, 0.08f, 4f, 90f);
                 if (target >= 0)
                 {
                     world.Damage(target, breakerDamage);
                     Hits++;
+                    Sfx.PlayAt("concrete_hit", WorkPoint.position, 0.55f, 1.2f, 0.1f);
                 }
             }
         }
@@ -994,12 +1019,14 @@ namespace DestructionLab
             grip.enablePreprocessing = false;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.WakeUp();
+            Sfx.PlayAt("hydraulic_stop_clunk", WorkPoint.position, 0.7f, 1f, 0.3f, 4f, 70f);
         }
 
         void Release()
         {
             if (grip != null) Destroy(grip);
             DropGrip();
+            Sfx.PlayAt("hydraulic_release", WorkPoint.position, 0.5f, 1f, 0.3f, 4f, 70f);
         }
 
         void DropGrip()

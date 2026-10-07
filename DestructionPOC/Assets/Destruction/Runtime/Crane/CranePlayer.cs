@@ -408,9 +408,37 @@ namespace DestructionLab
             if (Input.Jump.WasPressedThisFrame() && cc.isGrounded) vy = jumpSpeed;
             vy += gravity * Time.deltaTime;
             v.y = vy;
+            float fall = vy;
             cc.Move(v * Time.deltaTime);
+            Footsteps(new Vector3(v.x, 0f, v.z).magnitude, run, fall);
 
             if (FirstPersonView) cam.transform.SetPositionAndRotation(transform.position + Vector3.up * 1.62f, Quaternion.Euler(pitch, yaw, 0f));
+        }
+
+        float strideLeft;
+        bool wasGrounded = true;
+
+        /// <summary>A gravel step every stride while moving on the ground, and a heavier one on landing.</summary>
+        void Footsteps(float speed, bool run, float fallSpeed)
+        {
+            bool grounded = cc.isGrounded;
+            Vector3 feet = transform.position + Vector3.up * 0.1f;
+            if (grounded && !wasGrounded && fallSpeed < -4f)
+            {
+                Sfx.PlayAt("footstep_gravel", feet, 0.7f, 0.85f, 0.1f, 1.5f, 30f);
+                strideLeft = 0f;
+            }
+            else if (grounded && speed > 0.3f)
+            {
+                strideLeft -= speed * Time.deltaTime;
+                if (strideLeft <= 0f)
+                {
+                    Sfx.PlayAt("footstep_gravel", feet, run ? 0.55f : 0.4f, 1f, 0.12f, 1.5f, 25f);
+                    strideLeft = run ? 2f : 1.5f;
+                }
+            }
+            else strideLeft = 0.4f; // the first step comes soon after starting to move
+            wasGrounded = grounded;
         }
 
         void LateUpdate()
@@ -492,6 +520,7 @@ namespace DestructionLab
             thirdPersonDistance = -1f;
             rig.OnEnter();
             CabGlass.SetOperatorInside(rig as Component, true);
+            if (rig is Component c) MachineAudio.For(c).SetEngine(true);
             Input.SetContext(rig.ControlMap(Input));
             if (Overhead) overhead.Snap();
         }
@@ -501,6 +530,7 @@ namespace DestructionLab
             var rig = Current;
             rig.OnExit();
             CabGlass.SetOperatorInside(rig as Component, false);
+            if (rig is Component c) MachineAudio.For(c).SetEngine(false);
             Current = null;
             transitionFrame = Time.frameCount;
             Input.SetContext(null);
@@ -517,6 +547,7 @@ namespace DestructionLab
             {
                 Current.OnExit();
                 CabGlass.SetOperatorInside(Current as Component, false);
+                if (Current is Component c) MachineAudio.For(c).SetEngine(false);
                 Current = null;
                 Input.SetContext(null);
                 if (avatar != null) avatar.SetActive(!FirstPerson);

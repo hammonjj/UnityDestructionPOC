@@ -20,13 +20,21 @@ namespace DestructionLab
         int styleHeight;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => IsPaused = false;
+        static void ResetStatics()
+        {
+            IsPaused = false;
+            AudioListener.pause = false;
+        }
 
         void Update()
         {
             var kb = Keyboard.current;
             if (kb == null || !kb.escapeKey.wasPressedThisFrame) return;
-            if (IsPaused) Resume();
+            if (IsPaused)
+            {
+                Sfx.PlayUI("ui_back");
+                Resume();
+            }
             else if (GameLevel.Current != null && (SceneDirector.Instance == null || !SceneDirector.Instance.Busy)) Pause();
         }
 
@@ -40,12 +48,16 @@ namespace DestructionLab
             resumeVisible = Cursor.visible;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+            // The world goes quiet while paused; menu sounds ignore the listener pause.
+            AudioListener.pause = true;
+            Sfx.PlayUI("ui_panel_open");
         }
 
         public void Resume()
         {
             if (!IsPaused) return;
             IsPaused = false;
+            AudioListener.pause = false;
             Time.timeScale = resumeTimeScale;
             Cursor.lockState = resumeLock;
             Cursor.visible = resumeVisible;
@@ -87,13 +99,25 @@ namespace DestructionLab
             GUI.Label(new Rect(0f, y, Screen.width, 90f * s), "PAUSED", title);
             y += 110f * s;
 
-            if (GUI.Button(new Rect(x, y, w, h), "RESUME", button)) Resume();
+            if (GUI.Button(new Rect(x, y, w, h), "RESUME", button))
+            {
+                Sfx.PlayUI("ui_back");
+                Resume();
+            }
             y += h + gap;
-            if (GUI.Button(new Rect(x, y, w, h), "RESTART LEVEL", button)) RestartLevel();
+            if (GUI.Button(new Rect(x, y, w, h), "RESTART LEVEL", button))
+            {
+                Sfx.PlayUI("ui_select");
+                RestartLevel();
+            }
             y += h + gap;
             bool canQuit = SceneDirector.Instance != null;
             GUI.enabled = canQuit;
-            if (GUI.Button(new Rect(x, y, w, h), "QUIT TO TITLE", button)) QuitToTitle();
+            if (GUI.Button(new Rect(x, y, w, h), "QUIT TO TITLE", button))
+            {
+                Sfx.PlayUI("ui_select");
+                QuitToTitle();
+            }
             GUI.enabled = true;
             y += h + gap * 3f;
 

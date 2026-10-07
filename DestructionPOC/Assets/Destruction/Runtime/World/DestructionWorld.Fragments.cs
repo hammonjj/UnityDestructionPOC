@@ -184,6 +184,7 @@ namespace DestructionLab
                     time = SimTime, connection = -1, pieceA = baseName, pieceB = "",
                     from = ConnectionState.Structural, to = ConnectionState.Severed,
                     reason = reason, fragments = defs.Count,
+                    point = pos, material = material, mass = Graph.mass[i],
                 };
                 log.Add(e);
                 RaiseBreak(e);

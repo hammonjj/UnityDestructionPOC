@@ -335,6 +335,7 @@ namespace DestructionLab
             MassKg += it.mass;
             VolumeM3 += it.half.x * it.half.y * it.half.z * 8f;
             Captured++;
+            Sfx.PlayAt("bucket_scoop_dirt", CavityPosition, 0.6f, 1f, 1.5f, 5f, 90f);
         }
 
         void Follow(float dt, Vector3 pos, Quaternion rot)
@@ -386,7 +387,9 @@ namespace DestructionLab
             Item best = null;
             foreach (var it in items)
                 if (it.rb != null && (best == null || it.slot.z + it.slot.y * 0.25f > best.slot.z + best.slot.y * 0.25f)) best = it;
-            if (best != null) Release(best, ledger, collision);
+            if (best == null) return;
+            Release(best, ledger, collision);
+            Sfx.PlayAt("bucket_dump_earth", CavityPosition, 0.7f, 1f, 2.5f, 5f, 100f);
         }
 
         void Release(Item it, CleanupLedger ledger, RigCollision collision)

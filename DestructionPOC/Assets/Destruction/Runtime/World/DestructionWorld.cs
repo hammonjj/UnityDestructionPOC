@@ -38,6 +38,8 @@ namespace DestructionLab
 
         public event Action<BreakEvent> OnBreak;
         public event Action OnRebuilt;
+        /// <summary>A collision involving a piece hard enough to count as an impact (after the per-pair cooldown).</summary>
+        public event Action<ImpactEvent> OnImpact;
 
         Transform root;
         int nextClusterId;
@@ -71,6 +73,7 @@ namespace DestructionLab
             EnsureRenderMaterials();
             root = new GameObject("Destruction Root").transform;
             root.SetParent(transform, false);
+            if (GetComponent<DestructionAudio>() == null) gameObject.AddComponent<DestructionAudio>();
         }
 
         void OnEnable() { Physics.ContactEvent += OnContactEvent; }
@@ -369,6 +372,8 @@ namespace DestructionLab
                 pieceA = Graph.pieces[c.a].name,
                 pieceB = c.IsGround ? "ground" : Graph.pieces[c.b].name,
                 from = from, to = to, reason = reason, q = q, damage = d,
+                point = c.a < pieces.Count && pieces[c.a] != null ? pieces[c.a].transform.position : Vector3.zero,
+                material = Graph.pieces[c.a].material, mass = Graph.mass[c.a],
             };
             log.Add(e);
             OnBreak?.Invoke(e);

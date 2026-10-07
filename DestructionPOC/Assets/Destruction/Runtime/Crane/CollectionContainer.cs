@@ -152,7 +152,9 @@ namespace DestructionLab
             float dt = Time.fixedDeltaTime;
             foreach (var rb in seen)
             {
-                dwell.TryGetValue(rb, out float t);
+                // Rubble landing in the skip rattles off the steel floor; one sound covers a whole bucketful.
+                if (!dwell.TryGetValue(rb, out float t))
+                    Sfx.PlayAt("container_rubble_dump", rb.worldCenterOfMass, 0.7f, 1f, 2.5f, 8f, 140f);
                 t += dt;
                 if (t >= dwellSeconds)
                 {

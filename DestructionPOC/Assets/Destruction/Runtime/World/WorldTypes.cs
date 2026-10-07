@@ -36,6 +36,22 @@ namespace DestructionLab
         public float createdTime;
     }
 
+    /// <summary>A hard collision involving a piece (see <see cref="DestructionWorld.OnImpact"/>).</summary>
+    public struct ImpactEvent
+    {
+        public Vector3 point;
+        /// <summary>Pre-impact relative normal speed, m/s.</summary>
+        public float speed;
+        /// <summary>Dissipated energy, J.</summary>
+        public float energy;
+        /// <summary>Material index of the (first) piece involved.</summary>
+        public int material;
+        /// <summary>Mass of that piece, kg.</summary>
+        public float mass;
+        /// <summary>Both sides are pieces (debris on debris or on structure), not a piece on the ground or a machine.</summary>
+        public bool pieceToPiece;
+    }
+
     public struct BreakEvent
     {
         public float time;
@@ -49,6 +65,12 @@ namespace DestructionLab
         public float damage;
         /// <summary>Shatter events: connection is −1 and this is the number of fragments created.</summary>
         public int fragments;
+        /// <summary>World position of the failure (piece A's centre, or the shattered piece's).</summary>
+        public Vector3 point;
+        /// <summary>Material index of piece A (or of the shattered piece).</summary>
+        public int material;
+        /// <summary>Mass of piece A (or of the shattered piece), kg.</summary>
+        public float mass;
 
         public bool IsShatter => connection < 0;
 

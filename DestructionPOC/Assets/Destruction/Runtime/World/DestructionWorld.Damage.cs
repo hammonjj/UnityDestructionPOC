@@ -327,6 +327,17 @@ namespace DestructionLab
                 if (pairCooldown.TryGetValue(key, out float until) && until > SimTime) continue;
                 pairCooldown[key] = SimTime + imp.pairCooldown;
                 stats.impactsThisStep++;
+                if (OnImpact != null)
+                {
+                    int p = r.a >= 0 ? r.a : r.b;
+                    OnImpact(new ImpactEvent
+                    {
+                        point = r.point, speed = r.speed, energy = energy,
+                        material = p >= 0 ? Graph.pieces[p].material : -1,
+                        mass = p >= 0 ? Graph.mass[p] : 0f,
+                        pieceToPiece = r.a >= 0 && r.b >= 0,
+                    });
+                }
                 // Each body of the pair absorbs half of the dissipated energy.
                 ApplyImpact(r.a, 0.5f * energy);
                 ApplyImpact(r.b, 0.5f * energy);

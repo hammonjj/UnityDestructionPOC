@@ -81,12 +81,22 @@ namespace DestructionLab
     /// <see cref="BucketLoad"/>.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class LoaderRig : MonoBehaviour, IOperableRig, ILevelRig
+    public sealed class LoaderRig : MonoBehaviour, IOperableRig, ILevelRig, IMachineSound
     {
         public LoaderKind kind;
         public LoaderTuning tuning = new LoaderTuning();
         public DestructionWorld world;
         [System.NonSerialized] public CleanupLedger ledger;
+
+        // ------------------------------------------------------------------ sound
+
+        /// <summary>The skid steer has the small diesel; neither loader runs on tracks.</summary>
+        public MachineSoundProfile SoundProfile => new MachineSoundProfile
+        {
+            lightEngine = kind != LoaderKind.Wheel, workLoop = "hydraulic_move_loop",
+        };
+        public float DriveActivity => Mathf.Max(Mathf.Abs(leftSpeed), Mathf.Abs(rightSpeed)) / tuning.maxSpeed;
+        public float WorkActivity => Mathf.Max(Mathf.Abs(lift.vel) / tuning.liftSpeed, Mathf.Abs(tiltVel) / tuning.tiltSpeed);
 
         // ------------------------------------------------------------------ state (read by the HUD and tests)
 

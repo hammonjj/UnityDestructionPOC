@@ -11,7 +11,7 @@ namespace DestructionLab
     /// scale-1 wrapper objects and the FBX nodes are used only for pose and visuals.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class CraneRig : MonoBehaviour, ILevelRig
+    public sealed class CraneRig : MonoBehaviour, ILevelRig, IMachineSound
     {
         [Header("Speeds")]
         public float slewSpeed = 40f;       // deg/s
@@ -306,14 +306,47 @@ namespace DestructionLab
             void OnCollisionEnter(Collision c)
             {
                 float v = c.relativeVelocity.magnitude;
-                if (v >= 2.5f) rig.BallHit?.Invoke(v, c.GetContact(0).point);
+                if (v < 2.5f) return;
+                Vector3 p = c.GetContact(0).point;
+                rig.BallHit?.Invoke(v, p);
+                float loud = Mathf.InverseLerp(2.5f, 8f, v);
+                Sfx.PlayAt("concrete_impact_heavy", p, 0.5f + 0.5f * loud, 1f, 0.25f, 12f, 220f);
+                Sfx.PlayAt("metal_impact_heavy", p, 0.35f + 0.4f * loud, 0.8f, 0.25f, 10f, 200f);
             }
+        }
+
+        // ------------------------------------------------------------------ sound
+
+        public MachineSoundProfile SoundProfile => new MachineSoundProfile { tracked = true, workLoop = "crane_winch_loop" };
+        public float DriveActivity => Mathf.Max(Mathf.Abs(driveVel) / driveSpeed, Mathf.Abs(turnVel) / turnSpeed);
+        public float WorkActivity => Mathf.Max(Mathf.Abs(winchVel) / winchSpeed,
+            0.7f * Mathf.Abs(slewVel) / slewSpeed, 0.7f * Mathf.Abs(luffVel) / luffSpeed);
+
+        float ballSpeed, nextSwing;
+        bool winchWasMoving;
+
+        /// <summary>The ball whooshes as it picks up speed through a swing; the chain rattles when the winch starts.</summary>
+        void SwingAndChainSounds()
+        {
+            float now = Time.time;
+            float s = Ball.linearVelocity.magnitude;
+            if (ballSpeed < 4f && s >= 4f && now >= nextSwing)
+            {
+                Sfx.PlayAt("wrecking_ball_swing", Ball.position, Mathf.InverseLerp(4f, 9f, s) * 0.5f + 0.4f, 0.85f, 0.5f, 4f, 70f);
+                nextSwing = now + 1.2f;
+            }
+            ballSpeed = s;
+            bool winching = Mathf.Abs(winchVel) > 0.2f;
+            if (winching && !winchWasMoving)
+                Sfx.PlayAt("chain_rattle", tipAnchor.position, 0.6f, 1f, 0.8f, 6f, 90f);
+            winchWasMoving = winching;
         }
 
         void LateUpdate()
         {
             if (Ball == null) return;
             Integrate(Time.deltaTime);
+            SwingAndChainSounds();
             Stretch(suspension, tipAnchor.position, ballAttach.position, suspensionBaseLength);
             foreach (var l in links)
                 Stretch(l.cable, l.topFrame.TransformPoint(l.topLocal), l.bottomFrame.TransformPoint(l.bottomLocal), l.baseLength);

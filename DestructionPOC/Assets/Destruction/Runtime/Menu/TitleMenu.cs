@@ -76,9 +76,11 @@ namespace DestructionLab
 
             if (page == Page.Title)
             {
+                int was = selected;
                 int nav = Nav();
                 if (nav != 0) selected = (selected + nav + buttons.Count) % buttons.Count;
                 if (hover >= 0 && mouse != null && mouse.delta.ReadValue().sqrMagnitude > 0f) selected = hover;
+                if (selected != was) Sfx.PlayUI("ui_hover", 0.5f);
                 if (click && hover >= 0) Activate(hover);
                 else if (Confirm()) Activate(selected);
             }
@@ -147,24 +149,36 @@ namespace DestructionLab
 
         void Join(bool joined)
         {
-            if (joined) notice = null;
+            if (!joined) return;
+            notice = null;
+            Sfx.PlayUI("ui_confirm");
         }
 
         void Activate(int index)
         {
             if (index < 0 || index >= buttons.Count || !buttons[index].enabled)
             {
-                if (page == Page.Lobby && index == 0) notice = "Join first: press any key, or A on a gamepad.";
+                if (page == Page.Lobby && index == 0)
+                {
+                    notice = "Join first: press any key, or A on a gamepad.";
+                    Sfx.PlayUI("ui_error");
+                }
                 return;
             }
             if (page == Page.Title)
             {
+                Sfx.PlayUI(index == 0 ? "ui_select" : "ui_back");
                 if (index == 0) Go(Page.Lobby);
                 else Quit();
             }
-            else if (index == 0) BeginGame();
+            else if (index == 0)
+            {
+                Sfx.PlayUI("ui_confirm");
+                BeginGame();
+            }
             else
             {
+                Sfx.PlayUI("ui_back");
                 GameSession.Clear();
                 Go(Page.Title);
             }
