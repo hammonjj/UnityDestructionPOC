@@ -85,7 +85,7 @@ namespace DestructionLab
         public LoaderKind kind;
         public LoaderTuning tuning = new LoaderTuning();
         public DestructionWorld world;
-        public CleanupLedger ledger;
+        [System.NonSerialized] public CleanupLedger ledger;
 
         // ------------------------------------------------------------------ state (read by the HUD and tests)
 

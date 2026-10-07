@@ -14,7 +14,7 @@ namespace DestructionLab
     [RequireComponent(typeof(CranePlayer))]
     public sealed class LoaderHud : MonoBehaviour
     {
-        public CleanupLedger ledger;
+        [System.NonSerialized] public CleanupLedger ledger;
         public float margin = 14f;
         [Tooltip("Whole-building gauge only: distance below the top edge, to clear the player's hint text (top-left).")]
         public float gaugeTop = 78f;

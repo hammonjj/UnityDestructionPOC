@@ -24,7 +24,7 @@ namespace DestructionLab
         public Material trimMaterial;
 
         public DestructionWorld world;
-        public CleanupLedger ledger;
+        [System.NonSerialized] public CleanupLedger ledger;
         public Collider ground;
 
         /// <summary>Has walls under it already (authored in a level scene, or built earlier).</summary>

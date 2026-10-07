@@ -34,7 +34,7 @@ namespace DestructionLab
 
         [Header("Split screen")]
         [Tooltip("Devices this player owns. Empty = every device (single player). Set before the component is enabled.")]
-        public InputDevice[] devices;
+        [System.NonSerialized] public InputDevice[] devices;
         public int playerIndex;
         [Tooltip("Where Respawn Player puts this player. Defaults to the start position.")]
         public Vector3 spawnPosition;

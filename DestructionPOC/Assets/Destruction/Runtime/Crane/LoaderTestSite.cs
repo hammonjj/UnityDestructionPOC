@@ -18,6 +18,7 @@ namespace DestructionLab
     {
         public const string DebrisPrefix = "Loader debris";
 
+        [System.Serializable]
         public struct Layout
         {
             public Vector3 wheelLoader, skidSteer;     // start positions (facing +Z)
