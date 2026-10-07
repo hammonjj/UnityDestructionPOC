@@ -25,7 +25,22 @@ namespace DestructionLab
         /// <summary>Never solid for any machine: colliders that only hold loose debris (a loader's bucket shell).</summary>
         public static readonly HashSet<Collider> debrisOnly = new HashSet<Collider>();
 
+        /// <summary>Running gear (wheels, tracks, low undercarriage) that rolls over obstacles no taller than
+        /// <see cref="stepHeight"/> above <see cref="root"/>'s ground plane. Set up by <see cref="RigTerrain"/>.</summary>
+        public readonly HashSet<Collider> climbers = new HashSet<Collider>();
+        public float stepHeight;
+        public Transform root;
+
         static readonly Collider[] probe = new Collider[64];
+
+        /// <summary>A solid obstacle low enough for the running gear to roll over. Other machines never are.</summary>
+        bool Climbable(Collider o)
+        {
+            if (stepHeight <= 0f || root == null) return false;
+            var rb = o.attachedRigidbody;
+            if (rb != null && rb.isKinematic) return false;
+            return o.bounds.max.y <= root.position.y + stepHeight + 0.01f;
+        }
 
         public bool Blocks(Collider o)
         {
@@ -42,6 +57,7 @@ namespace DestructionLab
             foreach (var c in mine)
             {
                 if (c == null || !c.enabled) continue;
+                bool climber = climbers.Contains(c);
                 var b = c.bounds;
                 int n = Physics.OverlapBoxNonAlloc(b.center, b.extents + new Vector3(0.02f, 0.02f, 0.02f), probe, Quaternion.identity, ~0, QueryTriggerInteraction.Ignore);
                 for (int k = 0; k < n; k++)
@@ -54,6 +70,7 @@ namespace DestructionLab
                         if (orb != null && !orb.isKinematic && !own.Contains(o) && orb.IsSleeping()) orb.WakeUp();
                         continue;
                     }
+                    if (climber && Climbable(o)) continue;
                     var ct = c.transform;
                     var ot = o.transform;
                     if (Physics.ComputePenetration(c, ct.position, ct.rotation, o, ot.position, ot.rotation, out _, out float d))

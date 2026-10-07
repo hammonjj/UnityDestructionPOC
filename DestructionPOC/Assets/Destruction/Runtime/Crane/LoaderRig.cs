@@ -110,6 +110,10 @@ namespace DestructionLab
         public Transform FrontFrame => steer.node;
         public Transform Chassis { get; private set; }
         public readonly RigCollision Collision = new RigCollision();
+        public readonly RigTerrain Terrain = new RigTerrain();
+
+        [Tooltip("Tallest obstacle the wheels roll over, m. 0 = from the wheel size (0.55 × wheel radius).")]
+        public float stepHeight;
 
         public string RigName => kind == LoaderKind.Wheel ? "Wheel loader" : "Skid-steer loader";
         public string AttachmentName => "Bucket";
@@ -241,6 +245,8 @@ namespace DestructionLab
             };
             ApplyTuningToLoad();
             AddBucketShell();
+            var gear = ownColliders.FindAll(c => !bucketColliders.Contains(c) && !armColliders.Contains(c));
+            Terrain.Setup(transform, model, gear, Collision, stepHeight > 0f ? stepHeight : 0.55f * wheelRadius);
             vol.GetComponent<Renderer>().enabled = false;
 
             startPos = transform.position;
@@ -553,6 +559,7 @@ namespace DestructionLab
                     }
                 }
             }
+            Terrain.Step(dt);
             ApplyTuningToLoad(); // Inspector edits apply live
             Load.Step(dt, world, ledger, Collision);
         }
@@ -731,6 +738,7 @@ namespace DestructionLab
             body.rotation = startRot;
             transform.SetPositionAndRotation(startPos, startRot);
             foreach (var w in wheels) w.angle = 0f;
+            Terrain.Reset();
             SetPose(0f, 0f, 0f);
             Blocked = 0;
             Physics.SyncTransforms();

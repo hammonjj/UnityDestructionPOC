@@ -234,6 +234,48 @@ namespace DestructionLab.Tests
             yield return Settle(1f);
         }
 
+        /// <summary>A static box standing on the ground across the machine's path, <paramref name="ahead"/> m in front.</summary>
+        static Transform Obstacle(Transform machine, float ahead, Vector3 size)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "Test curb";
+            go.transform.localScale = size;
+            go.transform.SetPositionAndRotation(machine.position + machine.forward * ahead + Vector3.up * size.y * 0.5f, machine.rotation);
+            Physics.SyncTransforms();
+            return go.transform;
+        }
+
+        [UnityTest]
+        public IEnumerator SkidSteerRollsOverACurbButNotAWall()
+        {
+            // Reverse over it, away from the rubble pile ahead, with the bucket off the ground (a dragging bucket catches it).
+            var rig = Skid;
+            Assert.Greater(rig.Terrain.StepHeight, 0.15f, "a 15 cm curb is within the step height");
+            Assert.GreaterOrEqual(rig.Terrain.SupportCount, 8, "two footprint points per wheel");
+            rig.Command(0f, 0f, 1f, 0f);
+            yield return Until(() => rig.LiftAngle >= 15f, 3f);
+            var curb = Obstacle(rig.transform, -1.6f, new Vector3(3f, 0.15f, 0.25f));
+            float Behind(Transform t) => Vector3.Dot(t.position - rig.transform.position, rig.transform.forward) * -1f;
+            float peak = 0f;
+            rig.Command(-1f, 0f, 0f, 0f);
+            yield return Until(() =>
+            {
+                peak = Mathf.Max(peak, rig.Terrain.Lift);
+                return Behind(curb) < -1.6f;
+            }, 5f);
+            rig.Command(0f, 0f, 0f, 0f);
+            Assert.Less(Behind(curb), -1.6f, $"drove over the curb (blocked {rig.Blocked})");
+            Assert.Greater(peak, 0.08f, "the machine rose onto the curb");
+            yield return Settle(1f);
+            Assert.AreEqual(0f, rig.Terrain.Lift, 0.01f, "settles back onto the ground once past");
+
+            var wall = Obstacle(rig.transform, -1.6f, new Vector3(3f, 0.6f, 0.25f));
+            rig.Command(-1f, 0f, 0f, 0f);
+            yield return Settle(2f);
+            rig.Command(0f, 0f, 0f, 0f);
+            Assert.Greater(Behind(wall), 0.5f, $"a 60 cm wall still blocks (blocked {rig.Blocked})");
+        }
+
         [UnityTest]
         public IEnumerator SkidSteerTurnsInPlaceByDifferentialDrive()
         {

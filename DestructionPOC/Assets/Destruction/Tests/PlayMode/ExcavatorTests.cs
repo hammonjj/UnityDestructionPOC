@@ -615,6 +615,30 @@ namespace DestructionLab.Tests
         }
 
         [UnityTest]
+        public IEnumerator TracksRollOverACurb()
+        {
+            // Reverse over a 25 cm curb, away from the target wall ahead.
+            var rig = Rig(ExcavatorAttachment.Crusher);
+            Assert.Greater(rig.Terrain.StepHeight, 0.25f);
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "Test curb";
+            go.transform.localScale = new Vector3(4f, 0.25f, 0.3f);
+            go.transform.SetPositionAndRotation(rig.transform.position - rig.transform.forward * 2.6f + Vector3.up * 0.125f, rig.transform.rotation);
+            Physics.SyncTransforms();
+            float Behind() => -Vector3.Dot(go.transform.position - rig.transform.position, rig.transform.forward);
+            float peak = 0f;
+            for (float end = Time.time + 8f; Time.time < end && Behind() > -2.6f;)
+            {
+                rig.Command(-1f, 0f, 0f, 0f, 0f, 0f, 0f, 0f);
+                yield return null;
+                peak = Mathf.Max(peak, rig.Terrain.Lift);
+            }
+            rig.Command(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f);
+            Assert.Less(Behind(), -2.6f, $"drove over the curb (blocked {rig.Blocked})");
+            Assert.Greater(peak, 0.1f, "the excavator rose onto the curb");
+        }
+
+        [UnityTest]
         public IEnumerator LooseDebrisIsPushedNotBlocking()
         {
             var rig = Rig(ExcavatorAttachment.Grapple);

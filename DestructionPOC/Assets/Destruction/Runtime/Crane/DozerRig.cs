@@ -69,6 +69,10 @@ namespace DestructionLab
         public Transform Chassis { get; private set; }
         public Transform BladeNode => lift.node;
         public readonly RigCollision Collision = new RigCollision();
+        public readonly RigTerrain Terrain = new RigTerrain();
+
+        [Tooltip("Tallest obstacle the tracks roll over, m.")]
+        public float stepHeight = 0.45f;
 
         public string RigName => "Landfill dozer";
         public string AttachmentName => "Blade";
@@ -167,6 +171,7 @@ namespace DestructionLab
             foreach (var h in sprockets) h.sign = -1f;
 
             AddColliders(model);
+            Terrain.Setup(transform, model, ownColliders.FindAll(c => !bladeColliders.Contains(c)), Collision, stepHeight);
             startPos = transform.position;
             startRot = transform.rotation;
             SetPose(0f);
@@ -344,6 +349,7 @@ namespace DestructionLab
             if (body == null) return;
             float dt = Time.fixedDeltaTime;
             ramTimer = Mathf.Max(0f, ramTimer - dt);
+            Terrain.Step(dt);
             if (Parked) { leftSpeed = rightSpeed = 0f; YawRate = 0f; PushLoad = 0f; return; }
 
             // Arcade mix: steering adds to one track and subtracts from the other, then scales down to stay in range.
@@ -506,6 +512,7 @@ namespace DestructionLab
             body.rotation = startRot;
             transform.SetPositionAndRotation(startPos, startRot);
             foreach (var s in sprockets) s.angle = 0f;
+            Terrain.Reset();
             SetPose(0f);
             Blocked = 0;
             RamHits = 0;

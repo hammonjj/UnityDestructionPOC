@@ -278,6 +278,7 @@ namespace DestructionLab
             }
 
             AddColliders(model);
+            Terrain.Setup(transform, model, ownColliders.FindAll(c => !upperColliders.Contains(c)), Collision, stepHeight);
 
             var gripGo = new GameObject(name + " Grip Anchor");
             gripGo.transform.SetPositionAndRotation(WorkPoint.position, WorkPoint.rotation);
@@ -453,6 +454,9 @@ namespace DestructionLab
         /// <summary>Collision test against the world (solid things block, light debris is pushed). Add the ground to
         /// <see cref="RigCollision.ignore"/>: the tracks sit on it and the tool has its own floor.</summary>
         public readonly RigCollision Collision = new RigCollision();
+        public readonly RigTerrain Terrain = new RigTerrain();
+        [Tooltip("Tallest obstacle the tracks roll over, m.")]
+        public float stepHeight = 0.4f;
 
         readonly List<Collider> upperColliders = new List<Collider>(), boomColliders = new List<Collider>(),
             stickColliders = new List<Collider>(), wristColliders = new List<Collider>(), jawColliders = new List<Collider>();
@@ -646,6 +650,7 @@ namespace DestructionLab
         {
             if (body == null) return;
             float dt = Time.fixedDeltaTime;
+            Terrain.Step(dt);
             driveVel = Approach(driveVel, Mathf.Clamp(inDrive, -1f, 1f) * driveSpeed, driveAccel, dt);
             turnVel = Approach(turnVel, Mathf.Clamp(inTurn, -1f, 1f) * turnSpeed, turnAccel, dt);
             if (driveVel != 0f || turnVel != 0f)
@@ -1045,6 +1050,7 @@ namespace DestructionLab
             BitOffset = 0f;
             hammerPhase = 0f;
             Bites = Cuts = Strikes = Hits = 0;
+            Terrain.Reset();
             SetPose(0f, startBoomAngle, 0f, 0f);
             Physics.SyncTransforms();
         }

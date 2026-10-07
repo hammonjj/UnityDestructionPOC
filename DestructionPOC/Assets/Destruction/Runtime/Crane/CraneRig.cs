@@ -94,6 +94,7 @@ namespace DestructionLab
             suspension = Find("Crane_SuspensionCable");
 
             AddStructureColliders();
+            Terrain.Setup(transform, model, allColliders.FindAll(c => !carriageColliders.Contains(c)), Collision, stepHeight);
 
             // Cab seat and door, authored in wrapper space at the start pose (crane faces +Z, cab on the left, -X).
             seatLocal = Carriage.InverseTransformPoint(transform.TransformPoint(new Vector3(-0.9f, 2.95f, 0.7f)));
@@ -273,6 +274,7 @@ namespace DestructionLab
         {
             if (body == null) return;
             float dt = Time.fixedDeltaTime;
+            Terrain.Step(dt);
             driveVel = Approach(driveVel, Mathf.Clamp(pendingForward, -1f, 1f) * driveSpeed, driveAccel, dt);
             turnVel = Approach(turnVel, Mathf.Clamp(pendingTurn, -1f, 1f) * turnSpeed, turnAccel, dt);
             if (driveVel != 0f || turnVel != 0f)
@@ -322,6 +324,7 @@ namespace DestructionLab
             body.position = startPos;
             body.rotation = startRot;
             transform.SetPositionAndRotation(startPos, startRot);
+            Terrain.Reset();
             Carriage.localRotation = startCarriageRot;
             Boom.localRotation = startBoomRot;
             BoomAngle = startBoomAngle;
@@ -412,6 +415,9 @@ namespace DestructionLab
         /// <summary>Drive and slew refuse moves that would push the crane into buildings, other machines or heavy
         /// debris (CraneTest adds the ground to <see cref="RigCollision.ignore"/>). Light debris is pushed.</summary>
         public readonly RigCollision Collision = new RigCollision();
+        public readonly RigTerrain Terrain = new RigTerrain();
+        [Tooltip("Tallest obstacle the tracks roll over, m.")]
+        public float stepHeight = 0.4f;
         readonly List<Collider> allColliders = new List<Collider>(), carriageColliders = new List<Collider>(), boomColliders = new List<Collider>();
 
         /// <summary>Count of refused moves, for tests.</summary>

@@ -166,6 +166,30 @@ namespace DestructionLab.Tests
         }
 
         [UnityTest]
+        public IEnumerator TracksRollOverACurb()
+        {
+            // Reverse over a 30 cm curb, away from the windrow ahead of the blade.
+            var d = boot.Dozer;
+            Assert.Greater(d.Terrain.StepHeight, 0.3f);
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "Test curb";
+            go.transform.localScale = new Vector3(5f, 0.3f, 0.3f);
+            go.transform.SetPositionAndRotation(d.transform.position - d.transform.forward * 3.4f + Vector3.up * 0.15f, d.transform.rotation);
+            Physics.SyncTransforms();
+            float Behind() => -Vector3.Dot(go.transform.position - d.transform.position, d.transform.forward);
+            float peak = 0f;
+            d.Command(-1f, 0f, 0f);
+            for (float end = Time.time + 6f; Time.time < end && Behind() > -3.4f;)
+            {
+                yield return new WaitForFixedUpdate();
+                peak = Mathf.Max(peak, d.Terrain.Lift);
+            }
+            d.Command(0f, 0f, 0f);
+            Assert.Less(Behind(), -3.4f, $"drove over the curb (blocked {d.Blocked})");
+            Assert.Greater(peak, 0.15f, $"the dozer rose onto the curb ({d.Terrain.SupportCount} footprint points)");
+        }
+
+        [UnityTest]
         public IEnumerator HeavyRubbleIsPushedButSlowsTheDozer()
         {
             var d = boot.Dozer;
