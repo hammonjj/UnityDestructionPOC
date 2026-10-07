@@ -43,6 +43,11 @@ namespace DestructionLab
         [Tooltip("Overhead camera zoom for this level (orthographic size, or the framing size when the camera is perspective). 0 keeps the player prefab's value.")]
         public float cameraSize = 15f;
 
+        [Header("Look")]
+        [Tooltip("Material this level's destruction pieces render with, in place of the settings asset's piece material " +
+                 "(for example the burnt look of a fire-damaged lot). Its colour is still set per destruction material. Optional.")]
+        public Material pieceMaterial;
+
         [Header("Debug")]
         [Tooltip("Keep the lab's destroy tools and time controls (1-4, LMB, T, P, ., [ ]) available in this level.")]
         public bool devTools = true;
@@ -162,7 +167,11 @@ namespace DestructionLab
                 title = displayName,
                 instruction = "",
                 expected = "",
-                configure = s => settings = s,
+                configure = s =>
+                {
+                    settings = s;
+                    if (pieceMaterial != null) s.pieceMaterial = pieceMaterial; // s is the world's runtime copy
+                },
                 build = () => ReadStructures(settings),
                 triggerLabel = blastLabel,
                 trigger = blastPoint == null ? null : (System.Action<DestructionWorld>)(w => w.Explode(blastPoint.position, blastRadius, blastDamage, blastImpulse)),
