@@ -1,0 +1,193 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &7299181506410306173
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 835163911585506073}
+  - component: {fileID: 3279038066585182272}
+  - component: {fileID: 2929112443312631129}
+  - component: {fileID: 2605792254738190298}
+  m_Layer: 0
+  m_Name: SkidSteer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &835163911585506073
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7299181506410306173}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1616846496582065715}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!54 &3279038066585182272
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7299181506410306173}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 1
+  m_Interpolate: 1
+  m_Constraints: 0
+  m_CollisionDetection: 0
+--- !u!114 &2929112443312631129
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7299181506410306173}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: df6fc066bef2a4e87870f715ed443a0c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DestructionLab.Runtime::DestructionLab.LoaderRig
+  kind: 1
+  tuning:
+    maxSpeed: 3.6
+    reverseScale: 0.8
+    accel: 6
+    brake: 14
+    maxArticulation: 38
+    articulationSpeed: 45
+    turnMix: 0.75
+    liftSpeed: 22
+    liftAccel: 70
+    liftMaxAngle: 66
+    tiltSpeed: 55
+    tiltAccel: 180
+    bucketLocalMin: -55
+    bucketLocalMax: 140
+    curlLimit: -50
+    selfLevel: 1
+    capacityKg: 900
+    maxPieceMassKg: 400
+    maxPieceSize: 0.9
+    dumpAngle: 32
+    scoopReach: 0.45
+    scoopHeight: 0.5
+    scoopMinSpeed: 0.15
+    loadInTime: 0.35
+    releaseInterval: 0.12
+    releaseShove: 1.8
+    stickExponent: 1.4
+    invertDrive: 0
+    invertSteer: 0
+    invertLift: 0
+    invertTilt: 0
+  world: {fileID: 0}
+  authoredModel: {fileID: 2106525735650559113}
+--- !u!114 &2605792254738190298
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7299181506410306173}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d00b18ef644e14ca3824e688c5507a66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DestructionLab.Runtime::DestructionLab.LevelLabel
+  text: SKID STEER
+  offset: {x: 0, y: 3.4, z: 0}
+  onFootOnly: 1
+--- !u!1001 &1295497578328537560
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 835163911585506073}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0.7071067
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+      propertyPath: m_Name
+      value: SkidSteer
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+--- !u!4 &1616846496582065715 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+  m_PrefabInstance: {fileID: 1295497578328537560}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &2106525735650559113 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: d1f03cadcdc6a4148a98faed945777da, type: 3}
+  m_PrefabInstance: {fileID: 1295497578328537560}
+  m_PrefabAsset: {fileID: 0}

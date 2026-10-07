@@ -15,9 +15,22 @@ This note explains how the Destruction Lab is built, which approximations it mak
 | Accumulated damage law `D += h·k·max(0,q−1)^p` | The research's own suggestion, not Embark's | Yes |
 | Contact as both damage source and new support | Research recommendation | Yes, for both impact damage and resting support loads |
 
+## Game scenes and levels
+
+The lab scenes (`DestructionLab`, `CraneTest`) build themselves at runtime because their scenarios are procedural test cases. The game does not. It runs as additive scenes: `Bootstrap` (the `SceneDirector`, which owns every transition) and `Player` (the `PlayerManager`: device ownership, settings, pause, and the player objects themselves) stay loaded, and exactly one content scene, the title or a level, is swapped underneath them.
+
+A level is authored content. Its `GameLevel` root does no building of its own. When the level starts it:
+
+1. reads every `DestructibleStructure` in the scene through `StructureImporter` into one scenario, then hides the authored objects;
+2. builds the world from that scenario. A reset rebuilds from the same scene objects, so moving a structure changes what comes back;
+3. builds each machine prefab (`ILevelRig`) from the model already under it and hands it the world, ledger and ground;
+4. raises `GameLevel.Ready`. The Player scene answers by spawning one player per slot at the `PlayerSpawn` points, and removes them on `GameLevel.Unloading`.
+
+Machine prefabs store their model turned to face +Z. `RigModel.FaceForward` performs that turn and snaps it to 90° steps, so running it at edit time and again at build is harmless.
+
 ## Where pieces come from
 
-Two sources, one representation. Code-defined scenarios emit `PieceDef`s directly. Authored models go through `StructureImporter`, which reads every mesh renderer's **world-space bounds** and emits the same `PieceDef`s. Reading world bounds rather than transforms means the importer is indifferent to how the exporter mapped Blender's Z-up, -Y-forward axes onto Unity's Y-up, +Z-forward ones, which is the usual source of FBX grief.
+Two sources, one representation. Code-defined scenarios emit `PieceDef`s directly. Authored models, including the structures placed in level scenes, go through `StructureImporter`, which reads every mesh renderer's **world-space bounds** and emits the same `PieceDef`s. Reading world bounds rather than transforms means the importer is indifferent to how the exporter mapped Blender's Z-up, -Y-forward axes onto Unity's Y-up, +Z-forward ones, which is the usual source of FBX grief.
 
 Validation is deliberately loud rather than silent:
 

@@ -34,7 +34,7 @@ namespace DestructionLab
     /// solid structure blocks it, loose debris up to <see cref="RigCollision.pushableMass"/> is pushed ahead of the blade.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class DozerRig : MonoBehaviour, IOperableRig
+    public sealed class DozerRig : MonoBehaviour, IOperableRig, ILevelRig
     {
         public DozerTuning tuning = new DozerTuning();
         public DestructionWorld world;
@@ -121,9 +121,7 @@ namespace DestructionLab
             exits = ex.ToArray();
 
             // Face the wrapper's +Z whatever frame the FBX arrives in: the blade is ahead of the machine.
-            Vector3 fwd = Vector3.ProjectOnPlane(Edge.position - transform.position, Vector3.up);
-            float yaw = Vector3.SignedAngle(fwd, transform.forward, Vector3.up);
-            model.RotateAround(transform.position, Vector3.up, yaw);
+            AlignModel(transform, model);
 
             Vector3 lateral = transform.right;
             Setup(lift, bladeNode, lateral);
@@ -161,6 +159,27 @@ namespace DestructionLab
             lift.angle = Mathf.Clamp(liftDeg, 0f, tuning.liftMaxAngle);
             lift.vel = 0f;
             ApplyPose();
+        }
+
+        [Header("Level prefab")]
+        [Tooltip("The dozer FBX instance under this object. Built when the level starts.")]
+        public GameObject authoredModel;
+
+        public bool IsBuilt => body != null;
+
+        public void BuildInLevel(DestructionWorld levelWorld, CleanupLedger ledger, Collider ground)
+        {
+            if (IsBuilt || authoredModel == null) return;
+            world = levelWorld;
+            if (ground != null) Collision.ignore.Add(ground);
+            Build(authoredModel);
+        }
+
+        /// <summary>Turn a dozer FBX instance under <paramref name="root"/> to face +Z (the blade ahead).</summary>
+        public static void AlignModel(Transform root, Transform model)
+        {
+            var edge = RigModel.Find(model, "Anchor_BladeEdge");
+            if (edge != null) RigModel.FaceForward(root, model, edge.position, root.position);
         }
 
         static Transform FindOptional(Transform root, string name)

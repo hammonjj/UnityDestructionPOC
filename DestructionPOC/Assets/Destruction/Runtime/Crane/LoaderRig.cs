@@ -80,7 +80,7 @@ namespace DestructionLab
     /// <see cref="BucketLoad"/>.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class LoaderRig : MonoBehaviour, IOperableRig
+    public sealed class LoaderRig : MonoBehaviour, IOperableRig, ILevelRig
     {
         public LoaderKind kind;
         public LoaderTuning tuning = new LoaderTuning();
@@ -197,9 +197,7 @@ namespace DestructionLab
             Transform front = kind == LoaderKind.Wheel ? Find(model, "WL_FrontFrame") : null;
 
             // Face the wrapper's +Z whatever frame the FBX arrives in: the bucket is ahead of the machine.
-            Vector3 fwd = Vector3.ProjectOnPlane(Edge.position - transform.position, Vector3.up);
-            float yaw = Vector3.SignedAngle(fwd, transform.forward, Vector3.up);
-            model.RotateAround(transform.position, Vector3.up, yaw);
+            AlignModel(transform, model);
             seatForwardLocal = Quaternion.Inverse((front != null ? front : transform).rotation) * transform.forward;
 
             Vector3 lateral = transform.right;
@@ -274,6 +272,28 @@ namespace DestructionLab
             float lo = Mathf.Max(tuning.curlLimit, tuning.bucketLocalMin - tuning.selfLevel * lift.angle);
             float hi = tuning.bucketLocalMax - tuning.selfLevel * lift.angle;
             tilt = Mathf.Clamp(tilt, lo, hi);
+        }
+
+        [Header("Level prefab")]
+        [Tooltip("The loader FBX instance under this object (WheelLoader or SkidSteer, matching Kind). Built when the level starts.")]
+        public GameObject authoredModel;
+
+        public bool IsBuilt => body != null;
+
+        public void BuildInLevel(DestructionWorld levelWorld, CleanupLedger levelLedger, Collider ground)
+        {
+            if (IsBuilt || authoredModel == null) return;
+            world = levelWorld;
+            ledger = levelLedger;
+            if (ground != null) Collision.ignore.Add(ground);
+            Build(authoredModel, kind);
+        }
+
+        /// <summary>Turn a loader FBX instance under <paramref name="root"/> to face +Z (the bucket ahead).</summary>
+        public static void AlignModel(Transform root, Transform model)
+        {
+            var edge = RigModel.Find(model, "Anchor_BucketEdge");
+            if (edge != null) RigModel.FaceForward(root, model, edge.position, root.position);
         }
 
         static Transform FindOptional(Transform root, string name)

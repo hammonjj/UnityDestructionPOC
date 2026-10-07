@@ -19,10 +19,45 @@ namespace DestructionLab
         public float dwellSeconds = 0.5f;
         public Color bodyColor = new Color(0.20f, 0.36f, 0.42f);
         public Color trimColor = new Color(0.12f, 0.14f, 0.16f);
+        [Tooltip("Optional material assets for the walls and the trim. Empty makes runtime materials from the colours.")]
+        public Material bodyMaterial;
+        public Material trimMaterial;
 
         public DestructionWorld world;
         public CleanupLedger ledger;
         public Collider ground;
+
+        /// <summary>Has walls under it already (authored in a level scene, or built earlier).</summary>
+        public bool HasGeometry => transform.childCount > 0;
+
+        /// <summary>Level start: hand over the level's services. A container authored in the scene keeps its walls and
+        /// only stops them colliding with the ground; an empty one builds them.</summary>
+        public void Init(DestructionWorld levelWorld, CleanupLedger levelLedger, Collider levelGround)
+        {
+            world = levelWorld;
+            ledger = levelLedger;
+            ground = levelGround;
+            if (!HasGeometry)
+            {
+                Build();
+                return;
+            }
+            if (ground == null) return;
+            foreach (var c in GetComponentsInChildren<Collider>()) Physics.IgnoreCollision(c, ground, true);
+        }
+
+        /// <summary>Delete and rebuild the walls from the current size (editor: after changing Interior).</summary>
+        [ContextMenu("Rebuild Geometry")]
+        public void RebuildGeometry()
+        {
+            for (int i = transform.childCount - 1; i >= 0; i--)
+            {
+                var child = transform.GetChild(i).gameObject;
+                if (Application.isPlaying) Destroy(child);
+                else DestroyImmediate(child);
+            }
+            Build();
+        }
 
         readonly Dictionary<Rigidbody, float> dwell = new Dictionary<Rigidbody, float>();
         readonly List<Rigidbody> drop = new List<Rigidbody>();
@@ -38,8 +73,8 @@ namespace DestructionLab
 
         public void Build()
         {
-            var steel = MakeMaterial(bodyColor);
-            var trim = MakeMaterial(trimColor);
+            var steel = bodyMaterial != null ? bodyMaterial : MakeMaterial(bodyColor);
+            var trim = trimMaterial != null ? trimMaterial : MakeMaterial(trimColor);
             float hx = interior.x * 0.5f, hz = interior.z * 0.5f, t = wallThickness;
             Box("Floor", new Vector3(0f, floorThickness * 0.5f, 0f), new Vector3(interior.x + 2f * t, floorThickness, interior.z + 2f * t), trim);
             float wy = floorThickness + interior.y * 0.5f;
@@ -89,9 +124,10 @@ namespace DestructionLab
             go.GetComponent<MeshRenderer>().sharedMaterial = mat;
             if (collide)
             {
-                if (ground != null) Physics.IgnoreCollision(go.GetComponent<Collider>(), ground, true);
+                if (ground != null && Application.isPlaying) Physics.IgnoreCollision(go.GetComponent<Collider>(), ground, true);
             }
-            else Destroy(go.GetComponent<Collider>());
+            else if (Application.isPlaying) Destroy(go.GetComponent<Collider>());
+            else DestroyImmediate(go.GetComponent<Collider>());
         }
 
         void FixedUpdate()
@@ -168,6 +204,13 @@ namespace DestructionLab
             var cluster = piece != null ? piece.cluster : null;
             if (cluster == null) return;
             foreach (int i in new List<int>(cluster.pieces)) ledger.TryAccept(world, i);
+        }
+
+        void OnDrawGizmosSelected()
+        {
+            Gizmos.color = new Color(0.3f, 0.9f, 0.4f, 0.8f);
+            Gizmos.matrix = Matrix4x4.TRS(transform.position + transform.up * (FloorTop + interior.y * 0.5f), transform.rotation, Vector3.one);
+            Gizmos.DrawWireCube(Vector3.zero, interior);
         }
 
         /// <summary>Forget in-progress dwell timers (scene reset).</summary>

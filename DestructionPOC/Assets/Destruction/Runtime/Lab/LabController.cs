@@ -55,11 +55,14 @@ namespace DestructionLab
         Vector2 pressPos;
         bool pressOverUi;
 
-        public void Init(DestructionWorld w, LabCamera cam)
+        public void Init(DestructionWorld w, LabCamera cam) => Init(w, cam, ScenarioLibrary.All());
+
+        /// <summary>Run on the given scenarios only (a level runs on its own single scenario).</summary>
+        public void Init(DestructionWorld w, LabCamera cam, List<Scenario> scenarios)
         {
             world = w;
             labCamera = cam;
-            Scenarios = ScenarioLibrary.All();
+            Scenarios = scenarios;
             LoadScenario(0);
         }
 
@@ -112,7 +115,7 @@ namespace DestructionLab
 
         void Update()
         {
-            if (world == null) return;
+            if (world == null || PauseMenu.IsPaused) return;
             var kb = Keyboard.current;
             var mouse = Mouse.current;
 

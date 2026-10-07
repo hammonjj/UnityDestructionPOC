@@ -17,7 +17,7 @@ namespace DestructionLab
     public sealed class CranePlayer : MonoBehaviour
     {
         public CraneRig crane;
-        [Tooltip("Every machine the player can enter. Filled by CraneTestBootstrap.")]
+        [Tooltip("Every machine the player can enter. Filled by CraneTestBootstrap, or by the PlayerManager from the level.")]
         public List<MonoBehaviour> rigs = new List<MonoBehaviour>();
         public Camera cam;
         public DestructionWorld world;
@@ -28,6 +28,8 @@ namespace DestructionLab
         public float lookSensitivity = 0.1f;     // deg per mouse count
         public float stickLookSpeed = 160f;      // deg/s at full deflection
         public float interactRange = 3.2f;
+        [Tooltip("Camera shake from wrecking-ball hits (first-person view).")]
+        public bool cameraShake = true;
         public System.Action onReset;
 
         [Header("Split screen")]
@@ -232,6 +234,7 @@ namespace DestructionLab
 
         void Update()
         {
+            if (PauseMenu.IsPaused) return;
             var kb = Keyboard.current;
             var mouse = Mouse.current;
             Input.PollDevice();
@@ -364,7 +367,7 @@ namespace DestructionLab
             bool inCrane = Current is CraneOperable;
             float near = inCrane ? 1f : Mathf.Clamp01(1f - Vector3.Distance(transform.position, point) / 30f);
             // Camera shake is a first-person effect; the overhead view stays steady.
-            if (!Overhead) shake = Mathf.Max(shake, Mathf.Clamp01(speed / 9f) * near);
+            if (!Overhead && cameraShake) shake = Mathf.Max(shake, Mathf.Clamp01(speed / 9f) * near);
             if (speed >= 5f && near > 0.3f && hitStopUntil <= Time.unscaledTime)
             {
                 // A brief hit-stop sells the mass of the ball.

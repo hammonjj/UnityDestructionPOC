@@ -24,6 +24,41 @@ namespace DestructionLab
     }
 
     /// <summary>
+    /// A machine placed in a level scene as a prefab: its model is already a child (assigned to the rig's
+    /// <c>model</c> field) and posed facing the root's +Z, so it looks in the scene view the way it plays.
+    /// <see cref="GameLevel"/> hands over the level's services and builds it when the level starts.
+    /// </summary>
+    public interface ILevelRig
+    {
+        bool IsBuilt { get; }
+        void BuildInLevel(DestructionWorld world, CleanupLedger ledger, Collider ground);
+        /// <summary>Back to the pose it was built in (level reset).</summary>
+        void ResetPose();
+    }
+
+    /// <summary>Turns a machine model about the vertical so the point that marks its front lies ahead of the root
+    /// (+Z). The turn snaps to 90° steps, so it only undoes the FBX axis conversion and does nothing to a model that
+    /// is already posed, which keeps it safe to run on prefabs at edit time and again at Build.</summary>
+    public static class RigModel
+    {
+        public static void FaceForward(Transform root, Transform model, Vector3 aheadPoint, Vector3 from)
+        {
+            Vector3 fwd = Vector3.ProjectOnPlane(aheadPoint - from, Vector3.up);
+            if (fwd.sqrMagnitude < 1e-6f) return;
+            float yaw = Vector3.SignedAngle(fwd, root.forward, Vector3.up);
+            yaw = Mathf.Round(yaw / 90f) * 90f;
+            if (Mathf.Abs(yaw) > 0.01f) model.RotateAround(root.position, Vector3.up, yaw);
+        }
+
+        public static Transform Find(Transform root, string name)
+        {
+            foreach (var t in root.GetComponentsInChildren<Transform>(true))
+                if (t.name == name) return t;
+            return null;
+        }
+    }
+
+    /// <summary>
     /// A CraneTest machine the player can walk up to, climb into and operate (the wrecking crane and the excavators).
     /// <see cref="CranePlayer"/> owns the enter/exit lifecycle and routes input only to the occupied rig.
     /// </summary>

@@ -110,18 +110,29 @@ namespace DestructionLab
         void DrawLabels(Rect view)
         {
             var cam = player.cam;
-            if (cam == null || labels.Count == 0) return;
+            if (cam == null) return;
             foreach (var l in labels)
             {
                 if (l.onFootOnly && player.InCab) continue;
-                Vector3 s = cam.WorldToScreenPoint(l.follow != null ? l.follow.position + l.position : l.position);
-                if (s.z <= 0f) continue;
-                var size = tagStyle.CalcSize(new GUIContent(l.text));
-                // The camera reports whole-screen pixels; the group is offset to this player's viewport.
-                var r = new Rect(s.x - view.x - size.x * 0.5f - 5f, Screen.height - s.y - view.y - size.y * 0.5f - 2f, size.x + 10f, size.y + 4f);
-                GUI.DrawTexture(r, bg);
-                GUI.Label(new Rect(r.x + 5f, r.y + 2f, size.x, size.y), l.text, tagStyle);
+                DrawTag(view, cam, l.follow != null ? l.follow.position + l.position : l.position, l.text);
             }
+            // Labels authored in the level scene.
+            foreach (var l in LevelLabel.All)
+            {
+                if (l.onFootOnly && player.InCab) continue;
+                DrawTag(view, cam, l.Position, l.text);
+            }
+        }
+
+        void DrawTag(Rect view, Camera cam, Vector3 world, string text)
+        {
+            Vector3 s = cam.WorldToScreenPoint(world);
+            if (s.z <= 0f) return;
+            var size = tagStyle.CalcSize(new GUIContent(text));
+            // The camera reports whole-screen pixels; the group is offset to this player's viewport.
+            var r = new Rect(s.x - view.x - size.x * 0.5f - 5f, Screen.height - s.y - view.y - size.y * 0.5f - 2f, size.x + 10f, size.y + 4f);
+            GUI.DrawTexture(r, bg);
+            GUI.Label(new Rect(r.x + 5f, r.y + 2f, size.x, size.y), text, tagStyle);
         }
 
         void EnsureStyles()

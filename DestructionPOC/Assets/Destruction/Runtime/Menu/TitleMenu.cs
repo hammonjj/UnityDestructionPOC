@@ -45,6 +45,7 @@ namespace DestructionLab
 
         void Awake()
         {
+            SceneDirector.EnsureLoaded();
             Time.timeScale = 1f;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -182,7 +183,8 @@ namespace DestructionLab
         public void BeginGame()
         {
             if (GameSession.Slots.Count == 0) return;
-            SceneManager.LoadScene(gameScene);
+            if (SceneDirector.Instance != null) SceneDirector.Instance.LoadLevel(gameScene);
+            else SceneManager.LoadScene(gameScene);
         }
 
         static void Quit()

@@ -5,8 +5,9 @@ using UnityEngine.InputSystem.UI;
 namespace DestructionLab
 {
     /// <summary>
-    /// Single entry point placed in DestructionLab.unity. Builds the ground, world, camera rig, UI and
-    /// diagnostics at runtime so the scene file stays trivial and nothing needs manual wiring.
+    /// Single entry point placed in DestructionLab.unity, the developer test bench for the destruction system. Builds
+    /// the ground, world, camera rig, UI and diagnostics at runtime, because its scenarios are procedural by design.
+    /// Game levels are authored in the scene view instead (see <see cref="GameLevel"/>).
     /// </summary>
     public sealed class LabBootstrap : MonoBehaviour
     {
@@ -24,9 +25,6 @@ namespace DestructionLab
         [Tooltip("Optional asphalt lot pad (centre x/z, size x/z in metres) drawn over the ground. Zero size disables it.")]
         public Vector2 lotCenter;
         public Vector2 lotSize;
-
-        [Tooltip("Optional drivable yard (crane, dozer, skid steer, roll-off container, walking player, cleanup gauge). Built after the scenario loads.")]
-        public StoreYard yard;
 
         public DestructionWorld World { get; private set; }
         public LabController Controller { get; private set; }
@@ -67,16 +65,10 @@ namespace DestructionLab
             var labGo = new GameObject("Lab");
             Controller = labGo.AddComponent<LabController>();
             Controller.Init(World, labCam);
-            // The lab's debug view (stress lines, body markers, tint, stats panel) is for the plain lab; the game
-            // scene with a drivable yard shows none of it.
-            if (yard == null)
-            {
-                var overlay = new GameObject("Diagnostics Overlay").AddComponent<DiagnosticsOverlay>();
-                var hud = labGo.AddComponent<LabHud>();
-                overlay.Init(World, Controller);
-                hud.Init(Controller, World);
-            }
-            else Controller.DiagnosticsVisible = false;
+            var overlay = new GameObject("Diagnostics Overlay").AddComponent<DiagnosticsOverlay>();
+            var hud = labGo.AddComponent<LabHud>();
+            overlay.Init(World, Controller);
+            hud.Init(Controller, World);
             int start = startScenario;
             if (!string.IsNullOrEmpty(startScenarioId))
             {
@@ -85,7 +77,6 @@ namespace DestructionLab
                 else Debug.LogWarning($"[DestructionLab] start scenario '{startScenarioId}' not found; using index {startScenario}.");
             }
             Controller.LoadScenario(start);
-            if (yard != null) yard.Begin(this, cam, labCam);
         }
 
         /// <summary>Visual-only asphalt slab a hair above the ground (no collider; the ground still carries everything).</summary>

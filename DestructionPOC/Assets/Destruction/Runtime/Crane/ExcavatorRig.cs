@@ -19,7 +19,7 @@ namespace DestructionLab
     /// than cutting a mesh; the machine is kinematic, so it drives through static structure like the crane does.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class ExcavatorRig : MonoBehaviour, IOperableRig
+    public sealed class ExcavatorRig : MonoBehaviour, IOperableRig, ILevelRig
     {
         public ExcavatorAttachment attachment;
         public DestructionWorld world;
@@ -203,9 +203,7 @@ namespace DestructionLab
             door = FindOptional(model, "Anchor_Door");
 
             // Face the wrapper's +Z whatever frame the FBX arrives in: the stick hangs ahead of the machine at rest.
-            Vector3 fwd = Vector3.ProjectOnPlane(Wrist.position - Upper.position, Vector3.up);
-            float yaw = Vector3.SignedAngle(fwd, transform.forward, Vector3.up);
-            model.RotateAround(transform.position, Vector3.up, yaw);
+            AlignModel(transform, model);
             upperForwardLocal = Quaternion.Inverse(Upper.rotation) * transform.forward;
             upperRightLocal = Quaternion.Inverse(Upper.rotation) * transform.right;
             doorFallback = Upper.InverseTransformPoint(transform.position - transform.right * 2.2f);
@@ -221,6 +219,7 @@ namespace DestructionLab
                     Destroy(root.gameObject);
                 }
             }
+            Attachment.gameObject.SetActive(true); // a level prefab hides the attachments it is not fitted with
             Attachment.SetPositionAndRotation(Wrist.position, Wrist.rotation);
             Attachment.SetParent(Wrist, true);
 
@@ -306,6 +305,28 @@ namespace DestructionLab
                 gripBody.position = WorkPoint.position;
                 gripBody.rotation = WorkPoint.rotation;
             }
+        }
+
+        [Header("Level prefab")]
+        [Tooltip("The excavator FBX instance under this object (base plus every attachment). Built when the level starts with the attachment chosen above.")]
+        public GameObject authoredModel;
+
+        public bool IsBuilt => body != null;
+
+        public void BuildInLevel(DestructionWorld levelWorld, CleanupLedger ledger, Collider ground)
+        {
+            if (IsBuilt || authoredModel == null) return;
+            world = levelWorld;
+            if (ground != null) Collision.ignore.Add(ground);
+            Build(authoredModel, attachment);
+        }
+
+        /// <summary>Turn an excavator FBX instance under <paramref name="root"/> to face +Z (the stick ahead).</summary>
+        public static void AlignModel(Transform root, Transform model)
+        {
+            var upper = RigModel.Find(model, "Exc_Upper");
+            var wrist = RigModel.Find(model, "Exc_Wrist");
+            if (upper != null && wrist != null) RigModel.FaceForward(root, model, wrist.position, upper.position);
         }
 
         static Transform FindOptional(Transform root, string name)

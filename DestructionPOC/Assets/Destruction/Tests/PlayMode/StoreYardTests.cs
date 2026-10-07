@@ -10,11 +10,12 @@ using UnityEngine.TestTools;
 
 namespace DestructionLab.Tests
 {
-    /// <summary>Loads ConvenienceStore.unity: the yard (crane, skid steer, dozer, roll-off container, player), the
-    /// "rubble cleared" gauge and its denominator, and the lab keys alongside the player's.</summary>
+    /// <summary>Loads ConvenienceStore.unity (with Bootstrap and Player underneath): the authored yard (crane, skid
+    /// steer, dozer, excavator, roll-off container), the spawned player, the "rubble cleared" gauge and its denominator,
+    /// and the lab keys alongside the player's.</summary>
     public sealed class StoreYardTests
     {
-        StoreYard yard;
+        GameLevel level;
         DestructionWorld world;
         CranePlayer player;
         Keyboard kb;
@@ -26,12 +27,12 @@ namespace DestructionLab.Tests
 #if UNITY_EDITOR
             InputSystem.settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
 #endif
-            yield return SceneManager.LoadSceneAsync("ConvenienceStore");
-            yield return null;
-            yard = UnityEngine.Object.FindAnyObjectByType<StoreYard>();
-            Assert.IsNotNull(yard, "StoreYard in the scene");
-            world = yard.World;
-            player = yard.Player;
+            GameSession.Clear();
+            yield return GameScenes.LoadLevel("ConvenienceStore");
+            level = GameLevel.Current;
+            Assert.IsNotNull(level, "GameLevel in the scene");
+            world = level.World;
+            player = PlayerManager.Instance.Player;
             kb = InputSystem.AddDevice<Keyboard>();
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 60;
@@ -42,12 +43,9 @@ namespace DestructionLab.Tests
         public IEnumerator Unload()
         {
             if (kb != null && kb.added) InputSystem.RemoveDevice(kb);
-            foreach (var go in SceneManager.GetActiveScene().GetRootGameObjects()) UnityEngine.Object.Destroy(go);
-            ScenarioLibrary.ConvenienceStoreModel = null;
-            Time.timeScale = 1f;
+            yield return GameScenes.UnloadAll();
             Physics.simulationMode = SimulationMode.FixedUpdate;
             Application.targetFrameRate = -1;
-            yield return null;
             yield return null;
         }
 
@@ -74,7 +72,7 @@ namespace DestructionLab.Tests
             Physics.SyncTransforms();
         }
 
-        CleanupLedger Ledger => yard.Ledger;
+        CleanupLedger Ledger => level.Ledger;
 
         /// <summary>Drop up to n loose building bodies (rubble, fragments or detached pieces) into the container.</summary>
         float Deliver(int n)
@@ -90,7 +88,7 @@ namespace DestructionLab.Tests
                 if (!seen.Add(rb) || !CleanupLedger.CountsAsBuilding(world.Graph.pieces[i])) continue;
                 float mass = 0f;
                 foreach (int pi in p.cluster.pieces) mass += world.Graph.mass[pi];
-                rb.position = yard.Container.transform.position + new Vector3(-6f + moved * 0.4f, 1.0f + (moved % 3) * 0.3f, ((moved % 5) - 2) * 0.5f);
+                rb.position = level.container.transform.position + new Vector3(-6f + moved * 0.4f, 1.0f + (moved % 3) * 0.3f, ((moved % 5) - 2) * 0.5f);
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
                 moved++;
@@ -101,7 +99,7 @@ namespace DestructionLab.Tests
 
         IEnumerator BlowOutStore()
         {
-            yard.Lab.Controller.Trigger();
+            level.Controller.Trigger();
             world.Explode(new Vector3(13f, 1.5f, -10.5f), 3.5f, 2f, 20000f);
             world.Explode(new Vector3(7f, 1.5f, -10.5f), 3.5f, 2f, 20000f);
             yield return new WaitForSeconds(3f);
@@ -131,21 +129,21 @@ namespace DestructionLab.Tests
         [UnityTest]
         public IEnumerator YardHasTheFourRigsContainerAndPlayerOutsideTheStore()
         {
-            Assert.IsNotNull(yard.Crane);
-            Assert.IsNotNull(yard.Crane.Ball, "wrecking ball");
-            Assert.IsNotNull(yard.SkidSteer);
-            Assert.IsNotNull(yard.Dozer);
-            Assert.IsNotNull(yard.Excavator);
-            Assert.IsNotNull(yard.Container);
+            Assert.IsNotNull(level.Crane);
+            Assert.IsNotNull(level.Crane.Ball, "wrecking ball");
+            Assert.IsNotNull(level.SkidSteer);
+            Assert.IsNotNull(level.Dozer);
+            Assert.IsNotNull(level.Excavator);
+            Assert.IsNotNull(level.container);
             Assert.AreEqual(4, player.rigs.Count, "crane + skid steer + dozer + excavator are enterable");
-            CollectionAssert.Contains(player.rigs, yard.Excavator);
+            CollectionAssert.Contains(player.rigs, level.Excavator);
             yield return null;
         }
 
         [UnityTest]
         public IEnumerator ExcavatorIsTheHydraulicBreakerAndKeepsItsControls()
         {
-            var ex = yard.Excavator;
+            var ex = level.Excavator;
             Assert.AreEqual(ExcavatorAttachment.Breaker, ex.attachment, "starts on the jackhammer");
             Assert.AreEqual("Excavator", ex.RigName);
             Assert.AreEqual(ExcavatorRig.AttachmentLabel(ExcavatorAttachment.Breaker), ex.AttachmentName);
@@ -160,21 +158,21 @@ namespace DestructionLab.Tests
             Assert.IsTrue(panel.lastRows.Exists(r => r.Contains("Run breaker")), "the controls panel lists the breaker");
             Assert.IsTrue(panel.lastRows.Exists(r => r.Contains("Boom up / down")));
             // Lab shortcuts are ignored in the cab, as for the other rigs.
-            Assert.IsTrue(yard.Lab.Controller.keysBlocked());
-            var tool = yard.Lab.Controller.Tool;
+            Assert.IsTrue(level.Controller.keysBlocked());
+            var tool = level.Controller.Tool;
             yield return Tap(Key.Digit3);
-            Assert.AreEqual(tool, yard.Lab.Controller.Tool, "1-4 ignored in the excavator cab");
+            Assert.AreEqual(tool, level.Controller.Tool, "1-4 ignored in the excavator cab");
             // The breaker runs on LMB, so a click there must not also fire the lab's destroy tool; on foot it still does.
-            Assert.IsTrue(yard.Lab.Controller.clickBlocked(), "LMB belongs to the breaker in the cab");
+            Assert.IsTrue(level.Controller.clickBlocked(), "LMB belongs to the breaker in the cab");
             yield return Tap(Key.E);
             Assert.IsNull(player.Current);
-            Assert.IsFalse(yard.Lab.Controller.clickBlocked(), "LMB fires the destroy tool on foot");
+            Assert.IsFalse(level.Controller.clickBlocked(), "LMB fires the destroy tool on foot");
         }
 
         [UnityTest]
         public IEnumerator BreakerStrikesDamageTheStoreWall()
         {
-            var ex = yard.Excavator;
+            var ex = level.Excavator;
             // A brick bulkhead panel of the store's front wall (z ~ -10.2, 0.8 m tall).
             int target = world.Graph.pieces.FindIndex(p => p.name.StartsWith("Wall_Bulkhead_R1"));
             Assert.GreaterOrEqual(target, 0, "a front-wall brick piece");
@@ -219,7 +217,7 @@ namespace DestructionLab.Tests
         [UnityTest]
         public IEnumerator ResetReturnsTheExcavatorToItsParkedPose()
         {
-            var ex = yard.Excavator;
+            var ex = level.Excavator;
             Vector3 start = ex.transform.position;
             Quaternion rot = ex.transform.rotation;
             float boom0 = ex.BoomAngle;
@@ -244,11 +242,11 @@ namespace DestructionLab.Tests
         [UnityTest]
         public IEnumerator AllFourRigsParkInOneEvenlySpacedLineClearOfTheBuildings()
         {
-            var rigs = new Component[] { yard.Excavator, yard.Dozer, yard.SkidSteer, yard.Crane };
-            var containerRect = Rect.MinMaxRect(yard.Container.transform.position.x - yard.Container.interior.x * 0.5f - 0.5f,
-                yard.Container.transform.position.z - yard.Container.interior.z * 0.5f - 0.5f,
-                yard.Container.transform.position.x + yard.Container.interior.x * 0.5f + 0.5f,
-                yard.Container.transform.position.z + yard.Container.interior.z * 0.5f + 0.5f);
+            var rigs = new Component[] { level.Excavator, level.Dozer, level.SkidSteer, level.Crane };
+            var containerRect = Rect.MinMaxRect(level.container.transform.position.x - level.container.interior.x * 0.5f - 0.5f,
+                level.container.transform.position.z - level.container.interior.z * 0.5f - 0.5f,
+                level.container.transform.position.x + level.container.interior.x * 0.5f + 0.5f,
+                level.container.transform.position.z + level.container.interior.z * 0.5f + 0.5f);
 
             // One line: same z and heading, on the ground, evenly spaced along x.
             float z0 = rigs[0].transform.position.z;
@@ -309,7 +307,7 @@ namespace DestructionLab.Tests
         [UnityTest]
         public IEnumerator CraneInTheLineStillReachesTheStore()
         {
-            var crane = yard.Crane;
+            var crane = level.Crane;
             var fp = Footprint(crane);
             float dxWall = StoreRect.xMin - crane.transform.position.x;
             float dxCentre = StoreRect.center.x - crane.transform.position.x;
@@ -346,16 +344,16 @@ namespace DestructionLab.Tests
         public IEnumerator ContainerStaysReachableFromTheStoreSide()
         {
             // Container x 6..22 z 6.6..11.4; the store's front is z=-10 so there is a free lane between them.
-            var c = yard.Container.transform.position;
-            Assert.Greater(c.z - yard.Container.interior.z * 0.5f, StoreRect.yMax + 10f, "a lane between the store and the container");
-            Assert.Greater(c.z - yard.Container.interior.z * 0.5f, CanopyRect.yMax + 1f);
+            var c = level.container.transform.position;
+            Assert.Greater(c.z - level.container.interior.z * 0.5f, StoreRect.yMax + 10f, "a lane between the store and the container");
+            Assert.Greater(c.z - level.container.interior.z * 0.5f, CanopyRect.yMax + 1f);
             yield return null;
         }
 
         [UnityTest]
         public IEnumerator PlayerWalksToEachRigAndEntersIt()
         {
-            foreach (IOperableRig rig in new IOperableRig[] { yard.SkidSteer, yard.Dozer, yard.Excavator, yard.Crane.GetComponent<CraneOperable>() })
+            foreach (IOperableRig rig in new IOperableRig[] { level.SkidSteer, level.Dozer, level.Excavator, level.Crane.GetComponent<CraneOperable>() })
             {
                 StandAtDoor(rig);
                 yield return null;
@@ -370,7 +368,7 @@ namespace DestructionLab.Tests
         [UnityTest]
         public IEnumerator SkidSteerAndDozerDriveAcrossTheLotAndTheCraneSlews()
         {
-            foreach (var rig in new MonoBehaviour[] { yard.SkidSteer, yard.Dozer })
+            foreach (var rig in new MonoBehaviour[] { level.SkidSteer, level.Dozer })
             {
                 var op = (IOperableRig)rig;
                 StandAtDoor(op);
@@ -388,16 +386,16 @@ namespace DestructionLab.Tests
                 Assert.IsNull(player.Current);
             }
 
-            var crane = yard.Crane.GetComponent<CraneOperable>();
+            var crane = level.Crane.GetComponent<CraneOperable>();
             StandAtDoor(crane);
             yield return null;
             yield return Tap(Key.E);
             Assert.AreSame(crane, player.Current);
-            float slew0 = yard.Crane.SlewAngle;
+            float slew0 = level.Crane.SlewAngle;
             InputSystem.QueueStateEvent(kb, new KeyboardState(Key.D));
             yield return new WaitForSeconds(1f);
             InputSystem.QueueStateEvent(kb, new KeyboardState());
-            Assert.AreNotEqual(slew0, yard.Crane.SlewAngle, "A/D slews the crane");
+            Assert.AreNotEqual(slew0, level.Crane.SlewAngle, "A/D slews the crane");
         }
 
         // ------------------------------------------------------------------ gauge
@@ -497,7 +495,7 @@ namespace DestructionLab.Tests
             Assert.AreEqual(0f, Ledger.BuildingClearedKg);
             Assert.AreEqual(denom, Ledger.BuildingMassKg, 0.5f, "same building, same denominator");
             Assert.AreEqual(0, world.LiveFragments);
-            Assert.AreEqual(0, yard.Container.FrozenPieces);
+            Assert.AreEqual(0, level.container.FrozenPieces);
 
             // Backspace (the player's reset) does the same.
             yield return BlowOutStore();
@@ -533,17 +531,18 @@ namespace DestructionLab.Tests
         [UnityTest]
         public IEnumerator ScenarioSwitchingIsOffAndTheStoreStaysLoaded()
         {
-            int scenario = yard.Lab.Controller.ScenarioIndex;
+            int scenario = level.Controller.ScenarioIndex;
             yield return Tap(Key.N);
             yield return Tap(Key.B);
-            Assert.AreEqual(scenario, yard.Lab.Controller.ScenarioIndex);
-            Assert.AreEqual("store", yard.Lab.Controller.Scenarios[scenario].id);
+            Assert.AreEqual(scenario, level.Controller.ScenarioIndex);
+            Assert.AreEqual(1, level.Controller.Scenarios.Count, "a level runs on its own scenario only");
+            Assert.AreEqual("ConvenienceStore", level.Controller.Scenarios[scenario].id);
         }
 
         [UnityTest]
         public IEnumerator LabShortcutsAreIgnoredInACabSoRWinchesInsteadOfResetting()
         {
-            var op = yard.Crane.GetComponent<CraneOperable>();
+            var op = level.Crane.GetComponent<CraneOperable>();
             yield return BlowOutStore();
             Deliver(15);
             yield return new WaitForSeconds(3f);
@@ -555,21 +554,21 @@ namespace DestructionLab.Tests
             yield return null;
             yield return Tap(Key.E);
             Assert.AreSame(op, player.Current);
-            Assert.IsTrue(yard.Lab.Controller.keysBlocked());
+            Assert.IsTrue(level.Controller.keysBlocked());
 
-            float cable0 = yard.Crane.CableLength;
+            float cable0 = level.Crane.CableLength;
             InputSystem.QueueStateEvent(kb, new KeyboardState(Key.R)); // crane: R pays the cable in
             yield return new WaitForSeconds(0.6f);
             InputSystem.QueueStateEvent(kb, new KeyboardState());
             yield return null;
             Assert.AreEqual(builds, world.BuildCount, "R did not reset the scene");
             Assert.AreEqual(cleared, Ledger.BuildingProgress, 0.02f, "gauge kept");
-            Assert.AreNotEqual(cable0, yard.Crane.CableLength, "R drove the winch");
+            Assert.AreNotEqual(cable0, level.Crane.CableLength, "R drove the winch");
 
             // Lab tool keys are ignored in the cab; Backspace still resets from anywhere.
-            var tool = yard.Lab.Controller.Tool;
+            var tool = level.Controller.Tool;
             yield return Tap(Key.Digit3);
-            Assert.AreEqual(tool, yard.Lab.Controller.Tool, "1-4 ignored in the cab");
+            Assert.AreEqual(tool, level.Controller.Tool, "1-4 ignored in the cab");
             yield return Tap(Key.Backspace);
             yield return new WaitForSeconds(0.3f);
             Assert.IsNull(player.Current, "reset puts the player back on foot");
@@ -579,7 +578,7 @@ namespace DestructionLab.Tests
         [UnityTest]
         public IEnumerator MouseDestroyToolStillBreaksTheStoreWithThePlayerPresent()
         {
-            var tools = yard.Lab.Controller;
+            var tools = level.Controller;
             Assert.AreEqual(LabTool.Damage, tools.Tool);
             yield return Tap(Key.Digit2);
             Assert.AreEqual(LabTool.Explosion, tools.Tool, "1-4 select tools on foot");

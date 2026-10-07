@@ -9,10 +9,10 @@ It is an independent implementation inspired by the published principles behind 
 ## Run it
 
 1. Open the `DestructionPOC/` folder in Unity **6000.5.10f1** (URP, Input System). Any 6000.5 editor should work.
-2. Open `Assets/Scenes/DestructionLab.unity`. It is the only scene in Build Settings.
+2. Open `Assets/Scenes/DestructionLab.unity`, the destruction test bench.
 3. Press **Play**. The lab starts on scenario **4a · Partial attachment → separation**.
 
-Nothing else is needed. All geometry is procedural boxes, with no art, packages or mesh preparation.
+Nothing else is needed. All lab geometry is procedural boxes, with no art, packages or mesh preparation. For the game itself, open `Bootstrap.unity` (or any level) and press Play; see [Game scenes](#game-scenes).
 
 ## First three things to try
 
@@ -41,9 +41,34 @@ Nothing else is needed. All geometry is procedural boxes, with no art, packages 
 
 The on-screen panels give the same information. The scenario panel is on the left, and tools, playback and tuning are on the right. Help is bottom-left. Stats, the selected connection and the break log are bottom-right.
 
-## Game flow: title, lobby, split screen
+## Game scenes
 
-`Assets/Scenes/Title.unity` (menu **Destruction Lab → Rebuild Title Scene**) is first in the build. **Start** opens a lobby where up to two players join: any key (keyboard + mouse) or **A** (a gamepad). **Enter** / **Start** begins; **Esc** / **B** goes back. The game scene, `ConvenienceStore.unity`, then spawns one player per slot. Two players split the screen side by side, each with their own camera, HUD and devices: a keyboard + mouse or one gamepad each. Two players cannot climb into the same machine. Opening the scene directly (or the tests) gives one player on every device, as before.
+The game is a stack of additive scenes. Nothing uses `DontDestroyOnLoad`.
+
+| Scene | Loaded | Holds |
+|---|---|---|
+| `Bootstrap.unity` | First in the build, never unloaded | `SceneDirector`: every high-level transition (title ↔ level, restart), with a short fade |
+| `Player.unity` | By Bootstrap, never unloaded | `PlayerManager` (device ownership per player, settings saved to PlayerPrefs, spawning players into levels), `PauseMenu`, the EventSystem |
+| `Title.unity` | At startup and after Quit to Title | Title menu and lobby |
+| `ConvenienceStore.unity` | When the lobby begins | A level: everything in it is authored in the scene view |
+
+Press Play on any level or on the title in the editor and Bootstrap and Player load underneath it automatically, so you can test a level directly.
+
+**Authoring a level.** A level scene has a `GameLevel` root and is otherwise ordinary scene content:
+
+| Object | Component | What to do with it |
+|---|---|---|
+| Structures | `DestructibleStructure` | Every mesh renderer under it becomes a destructible piece when the level starts. Move, duplicate or delete children to change the building. The blockout rules still apply: axis-aligned boxes touching face to face, with material and kind from name suffixes. The authored objects are hidden at runtime. |
+| Machines | Prefabs in `Assets/Destruction/Prefabs/Machines` | Drag in as many as you like. Their tuning (speeds, bucket capacity, excavator attachment) is on the prefab or the instance. |
+| Roll-off container | `CollectionContainer` | Its walls are real child objects. After changing **Interior**, use the component's **Rebuild Geometry** context menu. |
+| Player spawns | `PlayerSpawn` | Player N starts at the spawn with index N, facing its forward. |
+| Name tags | `LevelLabel` | A floating label that follows its object. |
+| Demolition charge | `GameLevel` → **Blast Point** | Where **T** detonates. The radius is drawn as a gizmo. |
+| Ground, lot, lighting | Plain objects | Edit freely; assign the ground collider to `GameLevel` so machines ignore it. |
+
+**Title, lobby, split screen.** **Start** opens a lobby where up to two players join: any key (keyboard + mouse) or **A** (a gamepad). **Enter** / **Start** begins; **Esc** / **B** goes back. The Player scene then spawns one player per slot into the level. Two players split the screen side by side, each with their own camera, HUD and devices: a keyboard + mouse or one gamepad each. Two players cannot climb into the same machine. Opening a level directly (or the tests) gives one player on every device.
+
+**Pause.** **Esc** pauses a level: Resume, Restart level, Quit to title, and the settings (volume, mouse and stick look speed, camera shake). The pause menu has no gamepad binding yet.
 
 | Action | Keyboard + mouse | Gamepad |
 |---|---|---|

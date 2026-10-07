@@ -36,20 +36,17 @@ namespace DestructionLab.Tests
         {
             foreach (var d in new InputDevice[] { padA, padB, kb })
                 if (d != null && d.added) InputSystem.RemoveDevice(d);
-            foreach (var go in SceneManager.GetActiveScene().GetRootGameObjects()) Object.Destroy(go);
+            yield return GameScenes.UnloadAll();
             GameSession.Clear();
             ScenarioLibrary.ConvenienceStoreModel = null;
-            Time.timeScale = 1f;
             Physics.simulationMode = SimulationMode.FixedUpdate;
             Application.targetFrameRate = -1;
-            yield return null;
             yield return null;
         }
 
         IEnumerator LoadStore()
         {
-            yield return SceneManager.LoadSceneAsync("ConvenienceStore");
-            yield return null;
+            yield return GameScenes.LoadLevel("ConvenienceStore");
             yield return new WaitForSeconds(0.5f);
         }
 
@@ -87,8 +84,7 @@ namespace DestructionLab.Tests
         [UnityTest]
         public IEnumerator TitleStartsOnTheMenuAndLobbyJoinsPlayers()
         {
-            yield return SceneManager.LoadSceneAsync("Title");
-            yield return null;
+            yield return GameScenes.LoadTitle();
             var menu = Object.FindAnyObjectByType<TitleMenu>();
             Assert.IsNotNull(menu, "Title scene has a TitleMenu");
             Assert.IsFalse(menu.InLobby);
@@ -111,8 +107,7 @@ namespace DestructionLab.Tests
         [UnityTest]
         public IEnumerator LobbyBackLeavesAnEmptyLineup()
         {
-            yield return SceneManager.LoadSceneAsync("Title");
-            yield return null;
+            yield return GameScenes.LoadTitle();
             var menu = Object.FindAnyObjectByType<TitleMenu>();
             yield return Tap(Key.Enter);
             yield return Tap(Key.A);
@@ -132,10 +127,10 @@ namespace DestructionLab.Tests
             Assert.IsFalse(GameSession.JoinGamepad(padA), "full, and a pad cannot join twice");
             yield return LoadStore();
 
-            var yard = Object.FindAnyObjectByType<StoreYard>();
-            Assert.AreEqual(2, yard.Players.Count);
-            var p1 = yard.Players[0];
-            var p2 = yard.Players[1];
+            var yard = GameLevel.Current;
+            Assert.AreEqual(2, PlayerManager.Instance.Players.Count);
+            var p1 = PlayerManager.Instance.Players[0];
+            var p2 = PlayerManager.Instance.Players[1];
             Assert.AreNotSame(p1.cam, p2.cam);
             Assert.AreEqual(new Rect(0f, 0f, 0.5f, 1f), p1.cam.rect);
             Assert.AreEqual(new Rect(0.5f, 0f, 0.5f, 1f), p2.cam.rect);
@@ -153,9 +148,9 @@ namespace DestructionLab.Tests
             GameSession.JoinGamepad(padA);
             GameSession.JoinGamepad(padB);
             yield return LoadStore();
-            var yard = Object.FindAnyObjectByType<StoreYard>();
-            var p1 = yard.Players[0];
-            var p2 = yard.Players[1];
+            var yard = GameLevel.Current;
+            var p1 = PlayerManager.Instance.Players[0];
+            var p2 = PlayerManager.Instance.Players[1];
             // Stand both away from machines so nothing is entered, then push pad B's stick: only player 2 moves.
             StandAt(p1, new Vector3(0f, 0f, 8f));
             StandAt(p2, new Vector3(-10f, 0f, 8f));
@@ -173,9 +168,9 @@ namespace DestructionLab.Tests
             GameSession.JoinGamepad(padA);
             GameSession.JoinGamepad(padB);
             yield return LoadStore();
-            var yard = Object.FindAnyObjectByType<StoreYard>();
-            var p1 = yard.Players[0];
-            var p2 = yard.Players[1];
+            var yard = GameLevel.Current;
+            var p1 = PlayerManager.Instance.Players[0];
+            var p2 = PlayerManager.Instance.Players[1];
             var crane = yard.Crane.GetComponent<CraneOperable>();
             StandAt(p1, crane.DoorPosition);
             StandAt(p2, crane.DoorPosition);
@@ -194,8 +189,8 @@ namespace DestructionLab.Tests
         public IEnumerator RespawnVehicleSendsTheMachineHomeAndKeepsTheDriver()
         {
             yield return LoadStore();
-            var yard = Object.FindAnyObjectByType<StoreYard>();
-            var player = yard.Player;
+            var yard = GameLevel.Current;
+            var player = PlayerManager.Instance.Player;
             var skid = yard.SkidSteer;
             var rb = skid.GetComponent<Rigidbody>();
             Vector3 home = rb.position;
@@ -219,8 +214,8 @@ namespace DestructionLab.Tests
         public IEnumerator RespawnVehicleFromFootUsesTheNearestMachine()
         {
             yield return LoadStore();
-            var yard = Object.FindAnyObjectByType<StoreYard>();
-            var player = yard.Player;
+            var yard = GameLevel.Current;
+            var player = PlayerManager.Instance.Player;
             var dozer = yard.Dozer;
             var rb = dozer.GetComponent<Rigidbody>();
             Vector3 home = rb.position;
@@ -239,8 +234,8 @@ namespace DestructionLab.Tests
         public IEnumerator RespawnPlayerReturnsToTheSpawnAndLeavesTheMachine()
         {
             yield return LoadStore();
-            var yard = Object.FindAnyObjectByType<StoreYard>();
-            var player = yard.Player;
+            var yard = GameLevel.Current;
+            var player = PlayerManager.Instance.Player;
             Vector3 spawn = player.spawnPosition;
 
             StandAt(player, yard.SkidSteer.DoorPosition);
@@ -261,8 +256,8 @@ namespace DestructionLab.Tests
         public IEnumerator BucketMachinesShowTheBucketTiltGauge()
         {
             yield return LoadStore();
-            var yard = Object.FindAnyObjectByType<StoreYard>();
-            var player = yard.Player;
+            var yard = GameLevel.Current;
+            var player = PlayerManager.Instance.Player;
             var gauge = player.GetComponent<RigGaugeHud>();
             Assert.IsNotNull(gauge);
             yield return null;
@@ -293,8 +288,8 @@ namespace DestructionLab.Tests
         public IEnumerator CraneAndExcavatorShowTracksAgainstTheCab()
         {
             yield return LoadStore();
-            var yard = Object.FindAnyObjectByType<StoreYard>();
-            var player = yard.Player;
+            var yard = GameLevel.Current;
+            var player = PlayerManager.Instance.Player;
             var gauge = player.GetComponent<RigGaugeHud>();
 
             var crane = yard.Crane.GetComponent<CraneOperable>();
@@ -339,8 +334,8 @@ namespace DestructionLab.Tests
             yield return LoadStore();
             Assert.IsNull(Object.FindAnyObjectByType<LabHud>(), "lab HUD is not built in the game");
             Assert.IsNull(Object.FindAnyObjectByType<DiagnosticsOverlay>(), "diagnostic overlay is not built in the game");
-            var yard = Object.FindAnyObjectByType<StoreYard>();
-            Assert.IsFalse(yard.Lab.Controller.DiagnosticsVisible);
+            var yard = GameLevel.Current;
+            Assert.IsFalse(yard.Controller.DiagnosticsVisible);
         }
 
         [UnityTest]

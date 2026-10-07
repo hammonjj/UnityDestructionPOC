@@ -11,7 +11,7 @@ namespace DestructionLab
     /// scale-1 wrapper objects and the FBX nodes are used only for pose and visuals.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class CraneRig : MonoBehaviour
+    public sealed class CraneRig : MonoBehaviour, ILevelRig
     {
         [Header("Speeds")]
         public float slewSpeed = 40f;       // deg/s
@@ -83,8 +83,8 @@ namespace DestructionLab
             model = fbxInstance.transform;
             model.SetParent(transform, false);
             // The FBX root carries the axis-conversion rotation and faces -Z; keep that and turn it so the crane
-            // faces the wrapper's +Z.
-            model.localRotation = Quaternion.Euler(0f, 180f, 0f) * model.localRotation;
+            // faces the wrapper's +Z (a level prefab is already turned).
+            AlignModel(transform, model);
 
             Carriage = Find("Crane_UpperCarriage");
             Boom = Find("Crane_Boom");
@@ -339,6 +339,28 @@ namespace DestructionLab
             Ball.transform.SetPositionAndRotation(ballStartPos, ballStartRot);
             Physics.SyncTransforms();
             Ball.WakeUp();
+        }
+
+        // ------------------------------------------------------------------ level prefab
+
+        [Header("Level prefab")]
+        [Tooltip("The crane FBX instance under this object. Built when the level starts.")]
+        public GameObject authoredModel;
+
+        public bool IsBuilt => model != null;
+
+        public void BuildInLevel(DestructionWorld world, CleanupLedger ledger, Collider ground)
+        {
+            if (IsBuilt || authoredModel == null) return;
+            Build(authoredModel);
+            if (ground != null) Collision.ignore.Add(ground);
+        }
+
+        /// <summary>Turn a crane FBX instance under <paramref name="root"/> to face +Z (the boom tip ahead).</summary>
+        public static void AlignModel(Transform root, Transform model)
+        {
+            var tip = RigModel.Find(model, "Anchor_BoomTipCable");
+            if (tip != null) RigModel.FaceForward(root, model, tip.position, root.position);
         }
 
         // ------------------------------------------------------------------ setup helpers

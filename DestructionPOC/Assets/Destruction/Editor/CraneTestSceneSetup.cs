@@ -97,7 +97,7 @@ namespace DestructionLab.EditorTools
 
         static GameObject ConfigureCraneModel() => ConfigurePropModel(CraneModelPath);
 
-        // Shared with ConvenienceStoreSceneSetup, which uses the same rigs.
+        // Shared with GameScenesSetup, which makes the level machine prefabs from the same rigs.
         internal const string CraneModel = CraneModelPath;
         internal const string SkidSteerModel = SkidSteerModelPath;
         internal const string ExcavatorModel = ExcavatorModelPath;

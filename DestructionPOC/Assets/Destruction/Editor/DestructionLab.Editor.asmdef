@@ -2,7 +2,9 @@
     "name": "DestructionLab.Editor",
     "rootNamespace": "DestructionLab.EditorTools",
     "references": [
-        "DestructionLab.Runtime"
+        "DestructionLab.Runtime",
+        "Unity.InputSystem",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [
         "Editor"
