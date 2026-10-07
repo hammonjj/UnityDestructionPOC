@@ -22,12 +22,14 @@ namespace DestructionLab
         public readonly HashSet<Collider> own = new HashSet<Collider>();
         /// <summary>Never solid for this machine (the ground under the tracks, a load in the grapple).</summary>
         public readonly HashSet<Collider> ignore = new HashSet<Collider>();
+        /// <summary>Never solid for any machine: colliders that only hold loose debris (a loader's bucket shell).</summary>
+        public static readonly HashSet<Collider> debrisOnly = new HashSet<Collider>();
 
         static readonly Collider[] probe = new Collider[64];
 
         public bool Blocks(Collider o)
         {
-            if (own.Contains(o) || ignore.Contains(o) || o is CharacterController) return false;
+            if (own.Contains(o) || ignore.Contains(o) || debrisOnly.Contains(o) || o is CharacterController) return false;
             var rb = o.attachedRigidbody;
             return rb == null || rb.isKinematic || rb.mass > pushableMass;
         }

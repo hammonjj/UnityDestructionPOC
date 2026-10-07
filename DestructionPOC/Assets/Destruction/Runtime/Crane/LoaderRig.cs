@@ -39,7 +39,8 @@ namespace DestructionLab
         [Header("Bucket load")]
         [Tooltip("Largest load the bucket takes, kg.")] public float capacityKg = 4500f;
         [Tooltip("Heaviest single piece the bucket will take, kg. Heavier chunks stay outside.")] public float maxPieceMassKg = 2000f;
-        [Tooltip("Largest bounds extent of a piece the bucket will take, m.")] public float maxPieceSize = 1.4f;
+        [Tooltip("Largest bounds extent of a piece the bucket will take, m. Long, thin pieces up to the bucket's width are also taken, lying across it.")]
+        public float maxPieceSize = 1.4f;
         [Tooltip("Opening tipped below horizontal by more than this, degrees, pours the load out. Collection stops 5 degrees short of it.")] public float dumpAngle = 20f;
         [Tooltip("How far ahead of the cutting edge a moving bucket can take material, m.")] public float scoopReach = 0.6f;
         [Tooltip("Height of the scoop zone above the bucket floor, m.")] public float scoopHeight = 0.7f;
@@ -162,6 +163,14 @@ namespace DestructionLab
         readonly List<Collider> ownColliders = new List<Collider>(), bucketColliders = new List<Collider>(),
             armColliders = new List<Collider>(), frontColliders = new List<Collider>();
         BoxCollider[] bucketBoxes = new BoxCollider[0];
+        /// <summary>Wall thickness of the collider shell around the bucket cavity, m.</summary>
+        const float ShellThickness = 0.15f;
+        readonly List<Collider> shellColliders = new List<Collider>();
+
+        void OnDestroy()
+        {
+            foreach (var c in shellColliders) RigCollision.debrisOnly.Remove(c);
+        }
 
         struct Ram { public Transform node, other; public Quaternion rest; public Vector3 dirLocal; }
         readonly List<Ram> rams = new List<Ram>();
@@ -231,6 +240,7 @@ namespace DestructionLab
                 MaxPieceSize = tuning.maxPieceSize,
             };
             ApplyTuningToLoad();
+            AddBucketShell();
             vol.GetComponent<Renderer>().enabled = false;
 
             startPos = transform.position;
@@ -392,6 +402,38 @@ namespace DestructionLab
             }
             bucketBoxes = bucketBoxList.ToArray();
             if (ownColliders.Count == 0) Debug.LogError($"[DestructionLab] {RigName} FBX has no Col_* collider helpers.");
+        }
+
+        /// <summary>
+        /// Closed walls around the bucket cavity for loose debris. The model's Col_* plates are a few centimetres thick,
+        /// leave the curved heel between floor and back open, and move with the transform rather than through the
+        /// solver: a chunk sliding back in a lifting bucket slips out under the back plate, and a quick move can step a
+        /// plate through a chunk. These boxes wrap the cavity (Vol_Cavity) on the outside in plates
+        /// <see cref="ShellThickness"/> thick that overlap at the corners. The opening and the cutting edge stay as
+        /// modelled. The shell only holds debris: machine collision tests (this one's and every other machine's) still
+        /// use the modelled plates.
+        /// </summary>
+        void AddBucketShell()
+        {
+            var shell = new GameObject("Col_BucketShell").transform;
+            shell.SetParent(bucket.node, false);
+            shell.SetPositionAndRotation(Load.CavityPosition, Load.CavityRotation);
+            float k = 1f / Mathf.Max(1e-6f, Mathf.Abs(shell.lossyScale.x)); // metres to the shell's local units
+            Vector3 h = Load.Half;
+            float t = ShellThickness;
+            void Plate(Vector3 centre, Vector3 size)
+            {
+                var box = shell.gameObject.AddComponent<BoxCollider>();
+                box.center = centre * k;
+                box.size = size * k;
+                Collision.own.Add(box);
+                RigCollision.debrisOnly.Add(box);
+                shellColliders.Add(box);
+            }
+            Plate(new Vector3(0f, -h.y - t * 0.5f, -t * 0.5f), new Vector3(2f * h.x + 2f * t, t, 2f * h.z + t));         // floor, under the heel too
+            Plate(new Vector3(0f, -t * 0.5f, -h.z - t * 0.5f), new Vector3(2f * h.x + 2f * t, 2f * h.y + t, t));          // back, down to the floor
+            Plate(new Vector3(-h.x - t * 0.5f, -t * 0.5f, -t * 0.5f), new Vector3(t, 2f * h.y + t, 2f * h.z + t));         // sides
+            Plate(new Vector3(h.x + t * 0.5f, -t * 0.5f, -t * 0.5f), new Vector3(t, 2f * h.y + t, 2f * h.z + t));
         }
 
         // ------------------------------------------------------------------ controls

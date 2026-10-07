@@ -49,6 +49,8 @@ namespace DestructionLab
             Loose(list, $"{DebrisPrefix} oversized wheel", l.wheelPile + new Vector3(2.9f, 0.5f, 1.2f), new Vector3(1.8f, 1.0f, 1.2f), C, 20f);
             Pile(list, l.skidPile, "skid pile", seed: 91, cells: 3, cellSize: 0.8f, min: 0.2f, max: 0.5f, layers2: 0.35f);
             Loose(list, $"{DebrisPrefix} oversized skid", l.skidPile + new Vector3(2.0f, 0.4f, 0.4f), new Vector3(1.3f, 0.8f, 1.0f), C, -10f);
+            // A broken curb: longer than the skid steer's piece limit, but thin enough to lie across its bucket.
+            Loose(list, $"{DebrisPrefix} long skid", l.skidPile + new Vector3(-2.2f, 0.14f, 0f), new Vector3(0.25f, 0.25f, 1.5f), C, 0f);
         }
 
         /// <summary>A jittered grid of chunks, some with a second chunk stacked on top. Same pile every reset.</summary>

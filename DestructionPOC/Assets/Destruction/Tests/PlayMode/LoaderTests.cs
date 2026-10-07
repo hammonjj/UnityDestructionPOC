@@ -420,6 +420,72 @@ namespace DestructionLab.Tests
         }
 
         [UnityTest]
+        public IEnumerator SkidSteerTakesALongPieceLyingAcrossTheBucket()
+        {
+            var rig = Skid;
+            int curb = boot.World.Graph.pieces.FindIndex(p => p.name == $"{LoaderTestSite.DebrisPrefix} long skid");
+            Assert.GreaterOrEqual(curb, 0);
+            var piece = boot.World.pieces[curb];
+            var body = piece.cluster.body;
+            Assert.Greater(1.5f, rig.tuning.maxPieceSize, "longer than the piece limit");
+            // Park the bucket cavity on the curb, which lies front to back, with the bucket moving.
+            var t = rig.transform;
+            Vector3 d = body.worldCenterOfMass - rig.Load.CavityPosition;
+            d.y = 0f;
+            t.position += d;
+            rig.GetComponent<Rigidbody>().position = t.position;
+            Physics.SyncTransforms();
+            rig.Command(0.3f, 0f, 0f, 0f);
+            yield return Until(() => rig.Load.Holds(body), 2f);
+            rig.Command(0f, 0f, 0f, 0f);
+            Assert.IsTrue(rig.Load.Holds(body), "long piece is taken");
+            yield return Settle(0.6f);
+            Vector3 along = piece.transform.TransformDirection(Vector3.forward);
+            Assert.Greater(Mathf.Abs(Vector3.Dot(along, rig.Load.CavityRotation * Vector3.right)), 0.9f, "it lies across the bucket");
+        }
+
+        [UnityTest]
+        public IEnumerator LooseChunkDoesNotFallThroughAMovingBucket()
+        {
+            // A chunk the bucket will not take (too heavy) stays a physics body resting on the floor. Working the bucket
+            // hard at a low frame rate must not push it out through the plates.
+            Application.targetFrameRate = 20;
+            var rig = Skid;
+            rig.Command(0f, 0f, 1f, 0f);
+            yield return Until(() => rig.LiftAngle >= 25f, 5f);
+            rig.Command(0f, 0f, 0f, 0f);
+            yield return null;
+            var load = rig.Load;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "Heavy curb";
+            go.transform.localScale = new Vector3(1.5f, 0.2f, 0.3f);
+            go.transform.SetPositionAndRotation(load.CavityPosition + load.CavityRotation * new Vector3(0f, -load.Half.y + 0.12f, 0f), load.CavityRotation);
+            var body = go.AddComponent<Rigidbody>();
+            body.mass = rig.tuning.maxPieceMassKg + 100f;
+            yield return Settle(0.8f);
+
+            Vector3 Local() => Quaternion.Inverse(load.CavityRotation) * (body.position - load.CavityPosition);
+            Vector3 settled = Local();
+            float lowest = float.MaxValue;
+            string lost = "never";
+            void Track(string phase)
+            {
+                Vector3 l = Local();
+                lowest = Mathf.Min(lowest, l.y);
+                if (lost == "never" && l.y < -load.Half.y - 0.1f)
+                    lost = $"{phase} at lift {rig.LiftAngle:0}°, tilt {rig.BucketLocalAngle:0}°, local {l:F2}, dt {Time.deltaTime:0.000}";
+            }
+            // Curl back and lift together, then drop the arms, at full rate.
+            rig.Command(0f, 0f, 1f, -1f);
+            for (float end = Time.time + 1.5f; Time.time < end;) { yield return null; Track("lifting"); }
+            rig.Command(0f, 0f, -1f, 0f);
+            for (float end = Time.time + 1.5f; Time.time < end;) { yield return null; Track("lowering"); }
+            rig.Command(0f, 0f, 0f, 0f);
+            Assert.IsFalse(load.Holds(body), "not captured: physics alone keeps it in");
+            Assert.Greater(lowest, -load.Half.y - 0.1f, $"chunk stayed on the floor (settled at {settled:F2}, floor at {-load.Half.y:0.00}; lost {lost})");
+        }
+
+        [UnityTest]
         public IEnumerator FragmentsFromTheDestructionSystemAreCollectedWithoutExtraCredit()
         {
             // Shatter a pile piece through the world's own path and scoop the fragments.

@@ -18,8 +18,8 @@ namespace DestructionLab
     ///   Dump     Tipping the opening past the dump angle (or rolling the bucket on its side) releases pieces one at a
     ///            time, lip first, as dynamic bodies that inherit the bucket's motion, so material pours out.
     ///
-    /// Limits per machine: bucket mass capacity, largest piece mass and size (oversized chunks are never taken), and
-    /// the cavity volume itself, through the packing.
+    /// Limits per machine: bucket mass capacity, largest piece mass and size (oversized chunks are never taken; long,
+    /// thin pieces up to the bucket's width are taken lying across it), and the cavity volume itself, through the packing.
     /// Approximations: the pull-in is a short guided glide rather than contact physics, and fragments are not
     /// aggregated: each stays a separate body, so a very large number of tiny fragments is limited by the cavity.
     /// </summary>
@@ -189,7 +189,11 @@ namespace DestructionLab
                 if (!inCavity && !inZone) continue;
 
                 var lb = LocalBounds(rb);
-                if (Mathf.Max(lb.size.x, Mathf.Max(lb.size.y, lb.size.z)) > MaxPieceSize) continue;
+                // Long, thin pieces (posts, curbs, beams) are taken lying across the bucket, up to its width.
+                Vector3 s = lb.size;
+                float longest = Mathf.Max(s.x, Mathf.Max(s.y, s.z)), shortest = Mathf.Min(s.x, Mathf.Min(s.y, s.z));
+                float middle = s.x + s.y + s.z - longest - shortest;
+                if (middle > MaxPieceSize || longest > Mathf.Max(MaxPieceSize, 2f * Half.x)) continue;
                 if (!LineClear(pos + rot * (inZone ? new Vector3(0f, -Half.y + 0.15f, Half.z) : Vector3.zero), rb, world, collision)) continue;
                 if (!TryPack(rb, lb, rot, pos, out var item)) continue;
                 Capture(item, ledger, collision);
@@ -220,18 +224,24 @@ namespace DestructionLab
         bool TryPack(Rigidbody rb, Bounds lb, Quaternion rot, Vector3 pos, out Item item)
         {
             item = null;
-            // Yaw jitter keeps the load from looking like stacked crates; extents are the rotated bounds' AABB.
-            float yaw = ((rb.name.GetHashCode() & 0xFF) / 255f - 0.5f) * 40f;
-            Quaternion q = Quaternion.Euler(0f, yaw, 0f);
-            Vector3 e = lb.extents;
-            Vector3 half = new Vector3(
-                Mathf.Abs(Vector3.Dot(q * Vector3.right, Vector3.right)) * e.x + Mathf.Abs(Vector3.Dot(q * Vector3.up, Vector3.right)) * e.y + Mathf.Abs(Vector3.Dot(q * Vector3.forward, Vector3.right)) * e.z,
-                Mathf.Abs(Vector3.Dot(q * Vector3.right, Vector3.up)) * e.x + Mathf.Abs(Vector3.Dot(q * Vector3.up, Vector3.up)) * e.y + Mathf.Abs(Vector3.Dot(q * Vector3.forward, Vector3.up)) * e.z,
-                Mathf.Abs(Vector3.Dot(q * Vector3.right, Vector3.forward)) * e.x + Mathf.Abs(Vector3.Dot(q * Vector3.up, Vector3.forward)) * e.y + Mathf.Abs(Vector3.Dot(q * Vector3.forward, Vector3.forward)) * e.z);
-            half += Vector3.one * 0.01f;
-            int sx = Mathf.CeilToInt(half.x * 2f / Cell), sz = Mathf.CeilToInt(half.z * 2f / Cell);
+            // Lay the piece flat across the bucket. Yaw jitter keeps the load from looking like stacked crates; a long
+            // piece that only fits square to the edge gets none. Extents are the rotated bounds' AABB.
+            Quaternion lay = LayFlat(lb.extents);
+            float jitter = ((rb.name.GetHashCode() & 0xFF) / 255f - 0.5f) * 40f;
             int nx = heights.GetLength(0), nz = heights.GetLength(1);
-            if (sx > nx || sz > nz) return false;
+            Quaternion q = lay;
+            Vector3 half = Vector3.zero;
+            int sx = 0, sz = 0;
+            bool fits = false;
+            for (int pass = 0; pass < 2 && !fits; pass++)
+            {
+                q = Quaternion.Euler(0f, pass == 0 ? jitter : 0f, 0f) * lay;
+                half = RotatedHalf(q, lb.extents) + Vector3.one * 0.01f;
+                sx = Mathf.CeilToInt(half.x * 2f / Cell);
+                sz = Mathf.CeilToInt(half.z * 2f / Cell);
+                fits = sx <= nx && sz <= nz;
+            }
+            if (!fits) return false;
             float bestH = float.MaxValue;
             int bx = 0, bz = 0;
             for (int ix = 0; ix <= nx - sx; ix++)
@@ -267,6 +277,28 @@ namespace DestructionLab
                 lastWorld = rb.position,
             };
             return true;
+        }
+
+        /// <summary>Rotation from a piece's own frame to the cavity frame that puts its longest side across the bucket
+        /// (x), its thinnest side up (y) and the remaining side front to back (z).</summary>
+        static Quaternion LayFlat(Vector3 e)
+        {
+            int lo = e.x <= e.y && e.x <= e.z ? 0 : e.y <= e.z ? 1 : 2;
+            int hi = e.x > e.y && e.x > e.z ? 0 : e.y > e.z ? 1 : 2;
+            if (hi == lo) hi = (lo + 1) % 3;
+            int mid = 3 - lo - hi;
+            return Quaternion.Inverse(Quaternion.LookRotation(Axis(mid), Axis(lo)));
+        }
+
+        static Vector3 Axis(int i) => i == 0 ? Vector3.right : i == 1 ? Vector3.up : Vector3.forward;
+
+        /// <summary>Half extents of the axis-aligned box around a box of half extents <paramref name="e"/> turned by q.</summary>
+        static Vector3 RotatedHalf(Quaternion q, Vector3 e)
+        {
+            Vector3 a = q * new Vector3(e.x, 0f, 0f), b = q * new Vector3(0f, e.y, 0f), c = q * new Vector3(0f, 0f, e.z);
+            return new Vector3(Mathf.Abs(a.x) + Mathf.Abs(b.x) + Mathf.Abs(c.x),
+                               Mathf.Abs(a.y) + Mathf.Abs(b.y) + Mathf.Abs(c.y),
+                               Mathf.Abs(a.z) + Mathf.Abs(b.z) + Mathf.Abs(c.z));
         }
 
         void Stamp(Vector3 slot, Vector3 half)
