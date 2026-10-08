@@ -269,6 +269,8 @@ namespace DestructionLab
         void SetCursor(bool locked)
         {
             cursorLocked = locked;
+            // A gamepad-only player (split screen) must not grab the mouse that belongs to the keyboard player.
+            if (devices != null && devices.Length > 0 && !System.Array.Exists(devices, d => d is Mouse)) return;
             Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !locked;
         }

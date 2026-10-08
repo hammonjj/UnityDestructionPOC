@@ -17,6 +17,8 @@ namespace DestructionLab
         [Range(40f, 400f)] public float stickLookSpeed = 160f;
         [Tooltip("Camera shake from wrecking-ball hits (first-person view).")]
         public bool cameraShake = true;
+        [Tooltip("Borderless full screen instead of a window.")]
+        public bool fullscreen;
 
         /// <summary>The saved settings laid over a copy of <paramref name="defaults"/>.</summary>
         public static GameSettings Load(GameSettings defaults)
@@ -38,7 +40,12 @@ namespace DestructionLab
         }
 
         /// <summary>Global effects (the per-player ones are applied by <see cref="ApplyTo"/>).</summary>
-        public void Apply() => AudioListener.volume = masterVolume;
+        public void Apply()
+        {
+            AudioListener.volume = masterVolume;
+            var mode = fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
+            if (Screen.fullScreenMode != mode) Screen.fullScreenMode = mode;
+        }
 
         public void ApplyTo(CranePlayer player)
         {

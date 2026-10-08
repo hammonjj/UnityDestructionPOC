@@ -121,7 +121,7 @@ namespace DestructionLab
 
             player.devices = GameSession.DevicesFor(index);
             player.playerIndex = index;
-            player.allowViewToggle = count == 1;   // the first-person view locks the one mouse
+            player.allowViewToggle = true;   // gamepad-only players never touch the cursor lock, so split screen is safe
             player.rigs.Clear();
             player.rigs.AddRange(level.Rigs);
             player.crane = level.Crane;

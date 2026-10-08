@@ -20,7 +20,7 @@ namespace DestructionLab
         [Tooltip("Scene loaded when the lobby begins.")]
         public string gameScene = "ConvenienceStore";
 
-        enum Page { Title, Lobby }
+        enum Page { Title, Lobby, Settings }
 
         struct Button
         {
@@ -39,6 +39,7 @@ namespace DestructionLab
         GUIStyle titleStyle, tagStyle, buttonStyle, cardTitle, cardText, noticeStyle;
         Texture2D white;
         int styleHeight;
+        GameSettings settings;
 
         /// <summary>For tests.</summary>
         public bool InLobby => page == Page.Lobby;
@@ -50,6 +51,8 @@ namespace DestructionLab
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
             GameSession.Clear();
+            settings = GameSettings.Load(null);
+            settings.Apply();
         }
 
         void Start() => Layout();
@@ -74,7 +77,7 @@ namespace DestructionLab
                 click = mouse.leftButton.wasPressedThisFrame;
             }
 
-            if (page == Page.Title)
+            if (page != Page.Lobby)
             {
                 int was = selected;
                 int nav = Nav();
@@ -83,6 +86,7 @@ namespace DestructionLab
                 if (selected != was) Sfx.PlayUI("ui_hover", 0.5f);
                 if (click && hover >= 0) Activate(hover);
                 else if (Confirm()) Activate(selected);
+                else if (page == Page.Settings && BackPressed()) Activate(1);
             }
             else
             {
@@ -167,9 +171,21 @@ namespace DestructionLab
             }
             if (page == Page.Title)
             {
-                Sfx.PlayUI(index == 0 ? "ui_select" : "ui_back");
+                Sfx.PlayUI(index == 2 ? "ui_back" : "ui_select");
                 if (index == 0) Go(Page.Lobby);
+                else if (index == 1) Go(Page.Settings);
                 else Quit();
+            }
+            else if (page == Page.Settings)
+            {
+                Sfx.PlayUI(index == 0 ? "ui_select" : "ui_back");
+                if (index == 0)
+                {
+                    settings.fullscreen = !settings.fullscreen;
+                    settings.Apply();
+                    settings.Save();
+                }
+                else Go(Page.Title);
             }
             else if (index == 0)
             {
@@ -223,7 +239,14 @@ namespace DestructionLab
             {
                 float y = Screen.height * 0.52f;
                 Add("START", new Rect(cx - w * 0.5f, y, w, h), true);
-                Add("QUIT", new Rect(cx - w * 0.5f, y + h + gap, w, h), true);
+                Add("SETTINGS", new Rect(cx - w * 0.5f, y + h + gap, w, h), true);
+                Add("QUIT", new Rect(cx - w * 0.5f, y + 2f * (h + gap), w, h), true);
+            }
+            else if (page == Page.Settings)
+            {
+                float y = Screen.height * 0.52f;
+                Add($"FULLSCREEN: {(settings.fullscreen ? "ON" : "OFF")}", new Rect(cx - w * 0.5f, y, w, h), true);
+                Add("BACK", new Rect(cx - w * 0.5f, y + h + gap, w, h), true);
             }
             else
             {
@@ -248,11 +271,11 @@ namespace DestructionLab
 
             if (page == Page.Lobby) DrawLobby();
 
-            for (int i = 0; i < buttons.Count; i++) DrawButton(buttons[i], page == Page.Title && i == selected);
+            for (int i = 0; i < buttons.Count; i++) DrawButton(buttons[i], page != Page.Lobby && i == selected);
 
             if (!string.IsNullOrEmpty(notice))
                 GUI.Label(new Rect(0f, Screen.height * 0.66f, Screen.width, 40f * s), notice, noticeStyle);
-            string hint = page == Page.Title ? "W / S or D-pad to choose   Enter / A to confirm"
+            string hint = page != Page.Lobby ?"W / S or D-pad to choose   Enter / A to confirm"
                 : "Any key or A to join   Enter / Start to begin   Esc / B to go back";
             GUI.Label(new Rect(0f, Screen.height - 56f * s, Screen.width, 40f * s), hint, noticeStyle);
         }
