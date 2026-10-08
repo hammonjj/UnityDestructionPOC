@@ -24,7 +24,7 @@ namespace DestructionLab.Tests
                 var result = StructureImporter.Read(instance, DestructionSettings.CreateDefault());
                 Assert.IsFalse(result.HasErrors, string.Join("\n", result.issues));
                 Assert.AreEqual(0, result.Skipped);
-                Assert.AreEqual(215, result.pieces.Count);
+                Assert.AreEqual(211, result.pieces.Count);
                 Assert.That(result.pieces.Min(p => p.center.y - p.size.y * 0.5f), Is.EqualTo(0f).Within(1e-3f), "sits on y = 0");
             }
             finally
@@ -42,7 +42,7 @@ namespace DestructionLab.Tests
             {
                 var pieces = StructureImporter.Read(instance, DestructionSettings.CreateDefault()).pieces;
                 var paving = pieces.Where(p => !CleanupLedger.CountsAsBuilding(p)).ToList();
-                Assert.AreEqual(24, paving.Count, "sidewalk, curbs, pump island and wheel stops");
+                Assert.AreEqual(20, paving.Count, "sidewalk, curbs and pump island");
                 Assert.IsTrue(paving.All(p => p.name.StartsWith("Slab_")), string.Join(", ", paving.Select(p => p.name)));
                 Assert.AreEqual(191, pieces.Count - paving.Count);
                 // Cars, poles, signs, the boundary and fire debris lying on the ground are part of the building.

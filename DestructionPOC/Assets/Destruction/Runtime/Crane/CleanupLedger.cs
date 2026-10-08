@@ -35,7 +35,7 @@ namespace DestructionLab
         // What counts as "the building": every authored piece of the lot model (store, pump canopy, awning, cars,
         // light poles, pylon sign, dumpster enclosure, bins, bollards, boundary wall and fence) EXCEPT ground-level
         // paving, i.e. any piece whose top surface is within BuildingPavingTop of the ground (sidewalk slabs, curbs,
-        // pump-island slab, wheel stops). Paving is the lot surface, not something a demolition crew carts away, and
+        // pump-island slab). Paving is the lot surface, not something a demolition crew carts away, and
         // being anchored flat to the ground it can never be dumped. Cars and props are structure pieces in the model, so
         // they are part of the building.
         //

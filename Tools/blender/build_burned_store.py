@@ -246,8 +246,6 @@ def car(name, cx, cy, axis, burnt=False):
 def build_cars():
     car("Car_A", -14.0, 3.0, "y", burnt=True)
     car("Car_C", 20.0, 6.0, "y", burnt=True)
-    for i, x in enumerate((-14.0, -11.0, -8.0, -5.0)):
-        box("Cars", f"Slab_WheelStop{i}__concrete", x - 0.9, x + 0.9, 5.4, 5.65, 0, 0.12)
 
 
 def build_demolition():

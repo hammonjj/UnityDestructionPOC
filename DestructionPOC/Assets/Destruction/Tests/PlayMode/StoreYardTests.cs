@@ -464,8 +464,8 @@ namespace DestructionLab.Tests
             Assert.IsTrue(l.HasBuilding);
             Assert.AreEqual(0f, l.BuildingProgress);
             Assert.AreEqual(0f, l.BuildingClearedKg);
-            // 232 authored pieces; the 24 ground-level paving pieces (sidewalk, curb, pump island, wheel stops) do not count.
-            Assert.AreEqual(world.Graph.PieceCount - 24, l.BuildingPieces);
+            // The 20 ground-level paving pieces (sidewalk, curb, pump island) do not count.
+            Assert.AreEqual(world.Graph.PieceCount - 20, l.BuildingPieces);
             // Hand-summed from the graph: every non-paving authored piece.
             float sum = 0f;
             for (int i = 0; i < world.Graph.PieceCount; i++)

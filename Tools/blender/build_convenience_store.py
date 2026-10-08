@@ -190,8 +190,6 @@ def build_cars():
     car("Car_B", -8.0, 3.5, "y")
     car("Car_Pump", 8.0, -0.4, "x")
     car("Car_C", 20.0, 6.0, "y")
-    for i, x in enumerate((-14.0, -11.0, -8.0, -5.0)):
-        box("Cars", f"Slab_WheelStop{i}__concrete", x - 0.9, x + 0.9, 5.4, 5.65, 0, 0.12)
 
 
 def build_site():
