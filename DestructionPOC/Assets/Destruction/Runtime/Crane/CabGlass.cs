@@ -41,18 +41,30 @@ namespace DestructionLab
         static Material Clear(Material opaque)
         {
             if (clearOf.TryGetValue(opaque, out var c) && c != null) return c;
-            c = new Material(opaque) { name = opaque.name + " (see-through)" };
-            c.SetFloat("_Surface", 1f);
-            c.SetFloat("_Blend", 0f);
-            c.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            c.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            c.SetFloat("_ZWrite", 0f);
-            c.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            c.SetOverrideTag("RenderType", "Transparent");
-            c.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
             var col = opaque.GetColor("_BaseColor");
             col.a = ClearAlpha;
-            c.SetColor("_BaseColor", col);
+            // Sprites/Default is always included in builds and already blends. Flipping URP/Lit's transparent keyword
+            // at runtime fails in player builds: that variant is stripped, so the glass stayed opaque.
+            var sprite = Shader.Find("Sprites/Default");
+            if (sprite != null)
+            {
+                c = new Material(sprite) { name = opaque.name + " (see-through)" };
+                c.color = col;
+                c.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            }
+            else
+            {
+                c = new Material(opaque) { name = opaque.name + " (see-through)" };
+                c.SetFloat("_Surface", 1f);
+                c.SetFloat("_Blend", 0f);
+                c.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                c.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                c.SetFloat("_ZWrite", 0f);
+                c.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                c.SetOverrideTag("RenderType", "Transparent");
+                c.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                c.SetColor("_BaseColor", col);
+            }
             clearOf[opaque] = c;
             opaqueOf[c] = opaque;
             return c;
