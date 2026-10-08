@@ -51,13 +51,14 @@ namespace DestructionLab
 
         [Header("Gamepad")]
         [Tooltip("Response curve on stick input: 1 is linear, higher is gentler near the centre.")] [Range(1f, 2.5f)] public float stickExponent = 1.4f;
+        [Tooltip("Wheel loader on a gamepad: while steering with the stick leaning forward/back, drive is held at least this share of the steer input so the turn does not stall.")] [Range(0f, 1f)] public float turnDriveFloor = 0.7f;
         public bool invertDrive, invertSteer, invertLift, invertTilt;
 
         public static LoaderTuning WheelLoader() => new LoaderTuning();
 
         public static LoaderTuning SkidSteer() => new LoaderTuning
         {
-            maxSpeed = 3.6f, accel = 6f, brake = 14f, turnMix = 0.75f,
+            maxSpeed = 3.6f, accel = 6f, brake = 14f, turnMix = 0.55f,
             liftSpeed = 22f, liftAccel = 70f, liftMaxAngle = 66f,
             tiltSpeed = 55f, tiltAccel = 180f, bucketLocalMin = -55f, bucketLocalMax = 140f, selfLevel = 1f,
             capacityKg = 900f, maxPieceMassKg = 400f, maxPieceSize = 0.9f, dumpAngle = 32f,
@@ -496,8 +497,14 @@ namespace DestructionLab
         public void Operate(CraneTestInput input)
         {
             bool pad = input.UsingGamepad;
-            Command(Shape(input.LoaderDrive.ReadValue<float>(), pad, tuning.invertDrive),
-                    Shape(input.LoaderSteer.ReadValue<float>(), pad, tuning.invertSteer),
+            float drive = Shape(input.LoaderDrive.ReadValue<float>(), pad, tuning.invertDrive);
+            float steerIn = Shape(input.LoaderSteer.ReadValue<float>(), pad, tuning.invertSteer);
+            // Articulated steering only turns the machine while it rolls, and both axes share one stick, so a sideways
+            // push would otherwise cut the drive and stall the turn. Keep rolling the way the stick leans.
+            if (pad && kind == LoaderKind.Wheel && drive != 0f)
+                drive = Mathf.Sign(drive) * Mathf.Max(Mathf.Abs(drive), Mathf.Abs(steerIn) * tuning.turnDriveFloor);
+            Command(drive,
+                    steerIn,
                     Shape(input.LoaderLift.ReadValue<float>(), pad, tuning.invertLift),
                     Shape(input.LoaderTilt.ReadValue<float>(), pad, tuning.invertTilt));
         }
