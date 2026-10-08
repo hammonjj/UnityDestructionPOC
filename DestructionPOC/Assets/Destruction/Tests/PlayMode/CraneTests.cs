@@ -130,6 +130,7 @@ namespace DestructionLab.Tests
         public IEnumerator OverheadCameraStaysFixedWhileCarriageTurns()
         {
             var player = boot.Player;
+            player.SetView(CranePlayer.CameraView.Overhead); // no longer reachable in play; still supported by the component
             UnityEngine.InputSystem.InputSystem.settings.backgroundBehavior = UnityEngine.InputSystem.InputSettings.BackgroundBehavior.IgnoreFocus;
 #if UNITY_EDITOR
             UnityEngine.InputSystem.InputSystem.settings.editorInputBehaviorInPlayMode =
@@ -157,6 +158,8 @@ namespace DestructionLab.Tests
         public IEnumerator OverheadCameraIsFixedAngleWithOneListener()
         {
             var cam = Camera.main;
+            boot.Player.SetView(CranePlayer.CameraView.Overhead);
+            yield return null;
             Assert.IsNotNull(cam.GetComponent<CraneOverheadCamera>());
             Assert.IsFalse(cam.orthographic, "perspective");
             Assert.AreEqual(35f, cam.transform.eulerAngles.x, 0.01f, "pitch");

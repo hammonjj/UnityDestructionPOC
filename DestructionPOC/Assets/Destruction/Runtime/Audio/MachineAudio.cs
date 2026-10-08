@@ -20,6 +20,8 @@ namespace DestructionLab
         float DriveActivity { get; }
         /// <summary>How hard the working gear is moving (boom, arms, blade, winch).</summary>
         float WorkActivity { get; }
+        /// <summary>Count of moves refused because they would push into something solid. Rises when the machine bumps.</summary>
+        int Blocked { get; }
     }
 
     /// <summary>

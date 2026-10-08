@@ -366,15 +366,17 @@ namespace DestructionLab.Tests
         }
 
         [UnityTest]
-        public IEnumerator ViewKeyCyclesOverheadFirstPersonNearAndFarThirdPerson()
+        public IEnumerator ViewKeyCyclesFirstPersonNearAndFarThirdPerson()
         {
             var cam = player.cam;
             Vector3 Pivot() => player.transform.position + Vector3.up * 1.6f;
-            Assert.AreEqual(CranePlayer.CameraView.Overhead, player.View);
+            Assert.AreEqual(CranePlayer.CameraView.ThirdPersonNear, player.View, "starts in near third person");
+            Assert.IsFalse(player.overhead.enabled, "overhead camera is never used");
 
             yield return Tap(Key.V);
+            Assert.AreEqual(CranePlayer.CameraView.ThirdPersonFar, player.View);
+            yield return Tap(Key.V);
             Assert.AreEqual(CranePlayer.CameraView.FirstPerson, player.View);
-            Assert.IsFalse(player.overhead.enabled, "overhead camera off in first person");
 
             yield return Tap(Key.V);
             Assert.AreEqual(CranePlayer.CameraView.ThirdPersonNear, player.View);
@@ -396,7 +398,7 @@ namespace DestructionLab.Tests
             Assert.Greater(Vector3.Dot(moved, camFlat), 1f, "W is camera-relative");
 
             yield return Tap(Key.V);
-            Assert.AreEqual(CranePlayer.CameraView.ThirdPersonFar, player.View);
+            Assert.AreEqual(CranePlayer.CameraView.ThirdPersonFar, player.View, "near cycles to far");
             yield return new WaitForSeconds(0.5f);
             float far = Vector3.Distance(cam.transform.position, Pivot());
             Assert.LessOrEqual(far, player.thirdPersonFar + 0.05f);
@@ -416,8 +418,8 @@ namespace DestructionLab.Tests
             Assert.IsNull(player.Current);
 
             yield return Tap(Key.V);
-            Assert.AreEqual(CranePlayer.CameraView.Overhead, player.View, "cycles back to overhead");
-            Assert.IsTrue(player.overhead.enabled);
+            Assert.AreEqual(CranePlayer.CameraView.FirstPerson, player.View, "cycles back to first person");
+            Assert.IsFalse(player.overhead.enabled);
         }
 
         [UnityTest]

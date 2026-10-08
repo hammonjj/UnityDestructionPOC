@@ -11,7 +11,7 @@ namespace DestructionLab
     public static class CabGlass
     {
         const string GlassPrefix = "CraneCabGlass";
-        const float ClearAlpha = 0.12f;
+        const float ClearAlpha = 0f; // fully clear from the seat: no tint over the view
 
         static readonly Dictionary<Material, Material> clearOf = new Dictionary<Material, Material>();
         static readonly Dictionary<Material, Material> opaqueOf = new Dictionary<Material, Material>();

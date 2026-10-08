@@ -156,6 +156,7 @@ namespace DestructionLab
             cc.center = new Vector3(0f, 0.9f, 0f);
             cc.stepOffset = 0.4f;
             Input = new CraneTestInput(devices);
+            haptics = gameObject.AddComponent<Haptics>();
             spawnPosition = transform.position;
             spawnYaw = transform.eulerAngles.y;
         }
@@ -179,6 +180,8 @@ namespace DestructionLab
                 crane.BallHit += OnBallHit;
                 if (crane.GetComponent<CraneOperable>() is var op && op != null && !rigs.Contains(op)) rigs.Add(op);
             }
+            // Start in near third person; the overhead view is no longer reachable (View defaults to Overhead only as a placeholder).
+            if (overhead != null) SetView(CameraView.ThirdPersonNear);
             SetCursor(!Overhead);
             UpdateFocus();
             if (Overhead) overhead.Snap();
@@ -193,8 +196,8 @@ namespace DestructionLab
             overhead.Snap();
         }
 
-        /// <summary>Step to the next view: overhead, first person, near third person, far third person, then overhead again.</summary>
-        public void CycleView() => SetView((CameraView)(((int)View + 1) % 4));
+        /// <summary>Step to the next view: first person, near third person, far third person, then first person again.</summary>
+        public void CycleView() => SetView(View == CameraView.ThirdPersonFar ? CameraView.FirstPerson : (CameraView)((int)View + 1));
 
         public void SetView(CameraView view)
         {
@@ -462,12 +465,14 @@ namespace DestructionLab
         // ------------------------------------------------------------------ impact feel
 
         float shake, hitStopUntil;
+        Haptics haptics;
 
         void OnBallHit(float speed, Vector3 point)
         {
             // Felt more the closer you are; inside the crane cab you are right next to it.
             bool inCrane = Current is CraneOperable;
             float near = inCrane ? 1f : Mathf.Clamp01(1f - Vector3.Distance(transform.position, point) / 30f);
+            if (haptics != null) haptics.Hit(Mathf.Clamp01(speed / 9f) * near * 0.8f);
             // Camera shake is a first-person effect; the overhead view stays steady.
             if (!Overhead && cameraShake) shake = Mathf.Max(shake, Mathf.Clamp01(speed / 9f) * near);
             if (speed >= 5f && near > 0.3f && hitStopUntil <= Time.unscaledTime)
