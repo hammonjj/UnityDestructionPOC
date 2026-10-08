@@ -86,7 +86,7 @@ namespace DestructionLab
         /// <paramref name="minInterval"/> seconds ago or already has its voices busy.
         /// </summary>
         public static AudioSource PlayAt(string bank, Vector3 position, float volume = 1f, float pitch = 1f,
-            float minInterval = 0.05f, float minDistance = 6f, float maxDistance = 140f)
+            float minInterval = 0.05f, float minDistance = 6f, float maxDistance = 140f, int voices = VoicesPerBank)
         {
             if (volume <= 0.001f || !Application.isPlaying) return null;
             float now = Time.unscaledTime;
@@ -105,7 +105,7 @@ namespace DestructionLab
                 if (poolBank[i] == bank) busy++;
                 if (s.time > furthest) { furthest = s.time; oldest = i; }
             }
-            if (busy >= VoicesPerBank) return null;
+            if (busy >= voices) return null;
             int slot = free >= 0 ? free : oldest;
 
             var src = pool[slot];

@@ -132,10 +132,10 @@ namespace DestructionLab.Tests
             Assert.IsNotNull(level.Crane);
             Assert.IsNotNull(level.Crane.Ball, "wrecking ball");
             Assert.IsNotNull(level.SkidSteer);
-            Assert.IsNotNull(level.Dozer);
+            Assert.IsNotNull(level.WheelLoader);
             Assert.IsNotNull(level.Excavator);
             Assert.IsNotNull(level.container);
-            Assert.AreEqual(4, player.rigs.Count, "crane + skid steer + dozer + excavator are enterable");
+            Assert.AreEqual(4, player.rigs.Count, "crane + skid steer + wheel loader + excavator are enterable");
             CollectionAssert.Contains(player.rigs, level.Excavator);
             yield return null;
         }
@@ -242,7 +242,7 @@ namespace DestructionLab.Tests
         [UnityTest]
         public IEnumerator AllFourRigsParkInOneEvenlySpacedLineClearOfTheBuildings()
         {
-            var rigs = new Component[] { level.Excavator, level.Dozer, level.SkidSteer, level.Crane };
+            var rigs = new Component[] { level.Excavator, level.WheelLoader, level.SkidSteer, level.Crane };
             var containerRect = Rect.MinMaxRect(level.container.transform.position.x - level.container.interior.x * 0.5f - 0.5f,
                 level.container.transform.position.z - level.container.interior.z * 0.5f - 0.5f,
                 level.container.transform.position.x + level.container.interior.x * 0.5f + 0.5f,
@@ -353,7 +353,7 @@ namespace DestructionLab.Tests
         [UnityTest]
         public IEnumerator PlayerWalksToEachRigAndEntersIt()
         {
-            foreach (IOperableRig rig in new IOperableRig[] { level.SkidSteer, level.Dozer, level.Excavator, level.Crane.GetComponent<CraneOperable>() })
+            foreach (IOperableRig rig in new IOperableRig[] { level.SkidSteer, level.WheelLoader, level.Excavator, level.Crane.GetComponent<CraneOperable>() })
             {
                 StandAtDoor(rig);
                 yield return null;
@@ -423,7 +423,7 @@ namespace DestructionLab.Tests
         [UnityTest]
         public IEnumerator SkidSteerAndDozerDriveAcrossTheLotAndTheCraneSlews()
         {
-            foreach (var rig in new MonoBehaviour[] { level.SkidSteer, level.Dozer })
+            foreach (var rig in new MonoBehaviour[] { level.SkidSteer, level.WheelLoader })
             {
                 var op = (IOperableRig)rig;
                 StandAtDoor(op);

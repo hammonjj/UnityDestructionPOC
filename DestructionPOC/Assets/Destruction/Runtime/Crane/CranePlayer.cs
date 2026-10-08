@@ -616,7 +616,7 @@ namespace DestructionLab
                     : "Walk to a machine's cab steps (left side) to climb in: the crane, an excavator in the yard to the south, or a loader in the yard to the east";
             }
             text += $"\nRespawn vehicle {Input.Keys(Input.RespawnVehicle, pad)}    Respawn player {Input.Keys(Input.RespawnPlayer, pad)}";
-            text += $"    Reset all {Input.Keys(Input.Reset, pad)}" + (Overhead ? "" : "    Mouse unlock Esc");
+            text += pad ? "    Pause Start" : $"    Reset all {Input.Keys(Input.Reset, pad)}" + (Overhead ? "" : "    Mouse unlock Esc");
             if (overhead != null && allowViewToggle) text += $"    View {Input.Keys(Input.ToggleView, pad)} ({ViewName(View)})";
 
             var view = GuiRect;

@@ -70,6 +70,7 @@ namespace DestructionLab
 
         public CraneRig Crane => First<CraneRig>();
         public LoaderRig SkidSteer => Rigs.Find(r => r is LoaderRig l && l.kind == LoaderKind.Skid) as LoaderRig;
+        public LoaderRig WheelLoader => Rigs.Find(r => r is LoaderRig l && l.kind == LoaderKind.Wheel) as LoaderRig;
         public DozerRig Dozer => First<DozerRig>();
         public ExcavatorRig Excavator => First<ExcavatorRig>();
 

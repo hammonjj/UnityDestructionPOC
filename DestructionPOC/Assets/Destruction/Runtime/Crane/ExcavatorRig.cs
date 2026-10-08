@@ -861,13 +861,14 @@ namespace DestructionLab
             {
                 Strikes++;
                 int target = FindPieceSphere(WorkPoint.position, strikeRadius, BreakablePiece);
-                // The bit clanks on every stroke; on concrete the stroke also cracks it.
-                Sfx.PlayAt("metal_impact", WorkPoint.position, target >= 0 ? 0.45f : 0.3f, 1.5f, 0.08f, 4f, 90f);
+                // The bit clanks on every stroke; on concrete the stroke also cracks it. The clips ring for about a
+                // second and strikes come five a second, so the voice cap is raised or strikes drop out unevenly.
+                Sfx.PlayAt("metal_impact", WorkPoint.position, target >= 0 ? 0.45f : 0.3f, 1.5f, 0f, 4f, 90f, 8);
                 if (target >= 0)
                 {
                     world.Damage(target, breakerDamage);
                     Hits++;
-                    Sfx.PlayAt("concrete_hit", WorkPoint.position, 0.55f, 1.2f, 0.1f);
+                    Sfx.PlayAt("concrete_hit", WorkPoint.position, 0.55f, 1.2f, 0f, 6f, 140f, 8);
                 }
             }
         }

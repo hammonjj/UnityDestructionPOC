@@ -216,17 +216,17 @@ namespace DestructionLab.Tests
             yield return LoadStore();
             var yard = GameLevel.Current;
             var player = PlayerManager.Instance.Player;
-            var dozer = yard.Dozer;
-            var rb = dozer.GetComponent<Rigidbody>();
+            var loader = yard.WheelLoader;
+            var rb = loader.GetComponent<Rigidbody>();
             Vector3 home = rb.position;
             rb.position = home + new Vector3(0f, 0f, 6f);
-            dozer.transform.position = rb.position;
-            StandAt(player, dozer.DoorPosition);
+            loader.transform.position = rb.position;
+            StandAt(player, loader.DoorPosition);
             yield return null;
             Assert.IsNull(player.Current);
 
             yield return Tap(Key.X);
-            Assert.Less((rb.position - home).magnitude, 0.2f, "the dozer went home");
+            Assert.Less((rb.position - home).magnitude, 0.2f, "the loader went home");
             Assert.IsNull(player.Current, "still on foot");
         }
 
@@ -318,12 +318,12 @@ namespace DestructionLab.Tests
             yield return null;
             Assert.IsNull(gauge.Mode, "gauge hides on foot");
 
-            var dozer = yard.Dozer;
-            StandAt(player, dozer.DoorPosition);
+            var loader = yard.WheelLoader;
+            StandAt(player, loader.DoorPosition);
             yield return null;
             yield return Tap(Key.E);
             yield return null;
-            Assert.IsNull(gauge.Mode, "the dozer has neither a bucket nor a turning upper body");
+            Assert.AreEqual("bucket", gauge.Mode, "the wheel loader shows its bucket, not tracks");
         }
 
         // ------------------------------------------------------------------ debug HUD

@@ -65,7 +65,8 @@ namespace DestructionLab
             asset.AddControlScheme(Gamepad).WithRequiredDevice<UnityEngine.InputSystem.Gamepad>();
 
             global = asset.AddActionMap("Global");
-            Reset = Button(global, "Reset", "<Keyboard>/backspace", "<Gamepad>/start");
+            // Gamepad Start opens the pause menu (PauseMenu), which has Restart level, so it is not bound here.
+            Reset = global.AddAction("Reset", InputActionType.Button, "<Keyboard>/backspace", groups: KeyboardMouse);
             // Camera view: V, or the PlayStation touchpad click (the big button at the top). Other pads use R-stick click.
             ToggleView = Button(global, "ToggleView", "<Keyboard>/v", "<DualShockGamepad>/touchpadButton");
             ToggleView.AddBinding("<Gamepad>/rightStickPress", groups: Gamepad);

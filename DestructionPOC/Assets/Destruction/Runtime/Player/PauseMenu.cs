@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 namespace DestructionLab
 {
     /// <summary>
-    /// Player.unity's pause menu: Esc in a level stops time and offers Resume, Restart level, Quit to title, and the
+    /// Player.unity's pause menu: Esc (or gamepad Start) in a level stops time and offers Resume, Restart level, Quit to title, and the
     /// <see cref="GameSettings"/> (volume, look sensitivity, camera shake). Players and the level's shortcuts ignore
     /// input while it is open. Drawn with IMGUI over every viewport.
     /// </summary>
@@ -29,7 +29,9 @@ namespace DestructionLab
         void Update()
         {
             var kb = Keyboard.current;
-            if (kb == null || !kb.escapeKey.wasPressedThisFrame) return;
+            bool toggle = kb != null && kb.escapeKey.wasPressedThisFrame;
+            foreach (var pad in Gamepad.all) toggle |= pad.startButton.wasPressedThisFrame;
+            if (!toggle) return;
             if (IsPaused)
             {
                 Sfx.PlayUI("ui_back");
@@ -135,7 +137,7 @@ namespace DestructionLab
                 changed = true;
             }
             if (changed) pm.ApplySettings();
-            GUI.Label(new Rect(0f, Screen.height - 56f * s, Screen.width, 40f * s), "Esc to resume", label);
+            GUI.Label(new Rect(0f, Screen.height - 56f * s, Screen.width, 40f * s), "Esc / Start to resume", label);
         }
 
         bool Slider(ref float y, float x, float w, float s, string name, ref float value, float min, float max, string readout)

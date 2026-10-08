@@ -100,7 +100,7 @@ namespace DestructionLab.Tests
             Assert.IsFalse(store.gameObject.activeSelf, "the authored blueprint is hidden at runtime");
             Assert.Greater(level.World.Graph.PieceCount, 50, "the world built the store's pieces");
             Assert.AreEqual("ConvenienceStore", level.Crane.gameObject.scene.name, "machines are scene objects of the level");
-            Assert.AreEqual(4, level.Rigs.Count, "crane, skid steer, dozer, excavator");
+            Assert.AreEqual(4, level.Rigs.Count, "crane, skid steer, wheel loader, excavator");
             Assert.AreEqual(2, level.Spawns.Count);
             Vector3 spawn = level.Spawns[0].transform.position;
             Vector3 p = PlayerManager.Instance.Player.transform.position;
