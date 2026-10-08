@@ -240,7 +240,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bea1c79d1a81c43cc8658c2a2ae27621, type: 3}
   m_Name: 
   m_EditorClassIdentifier: DestructionLab.Runtime::DestructionLab.TitleMenu
-  gameTitle: DESTRUCTION LAB
+  gameTitle: LOAD BEARING
   tagline: Bring the building down. Clear the rubble.
   gameScene: ConvenienceStore
 --- !u!4 &2092205621

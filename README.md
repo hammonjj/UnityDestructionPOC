@@ -1,4 +1,6 @@
-# Unity Destruction POC — Destruction Lab
+# Load Bearing
+
+Load Bearing is a physics-driven sandbox about heavy machinery and believable destruction. The project began as the Unity Destruction POC, and its code namespace and test bench are still called the Destruction Lab.
 
 A small, playable lab for checking believable structural failure in Unity. The behaviour it is built around is the in-between state: a damaged structural connection fails while a weaker residual attachment survives. A floor or wall then tilts, sags, hangs, settles against another surface, or tears free. Load, contact and damage drive that sequence, never a timer.
 
